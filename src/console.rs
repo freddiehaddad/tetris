@@ -81,6 +81,7 @@ fn update_options(settings: &mut Settings) -> std::io::Result<ScreenUpdate> {
 pub fn run(w: &mut impl Write) -> std::io::Result<()> {
     // Setup console
     w.execute(terminal::EnterAlternateScreen)?;
+    // TODO support kitty someday w.execute(event::PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES))?;
     terminal::enable_raw_mode()?;
 
     // Prepare and run main update loop
@@ -89,26 +90,14 @@ pub fn run(w: &mut impl Write) -> std::io::Result<()> {
     'update_loop: for tick in 0u64.. {
         let time_start = Instant::now();
 
-        // If all screens dropped, stop application
+        // Retrieve active screen, stop application if all were dropped
         let Some(screen) = active_screens.last() else {
             break;
         };
 
         while event::poll(Duration::from_secs(0))? {
             match event::read()? {
-                Event::FocusGained => {
-                    // Do nothing special and let player continue
-                }
-                Event::FocusLost => {
-                    // Pause and restart update loop
-                    if let Screen::Gaming(_) = screen {
-                        active_screens.push(Screen::Options);
-                        continue 'update_loop
-                    }
-                }
-                Event::Key(KeyEvent) => {
-                    // TODO
-                }
+                // Abort
                 Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::CONTROL,
@@ -116,15 +105,27 @@ pub fn run(w: &mut impl Write) -> std::io::Result<()> {
                         state: _}) => {
                     break 'update_loop
                 }
-                Event::Mouse(MouseEvent) => {
-                    // NOTE We do not handle mouse events (yet?)
-                }
-                Event::Paste(String) => {
-                    // Ignore pasted text
+                // Handle common key inputs
+                Event::Key(KeyEvent) => {
+                    // TODO handle key inputs!
                 }
                 Event::Resize(cols, rows) => {
                     // TODO handle resize
                 }
+                // Console lost focus: Pause, re-enter update loop
+                Event::FocusLost => {
+                    // TODO actively UNfocus application (requires flag)?
+                    if let Screen::Gaming(_) = screen {
+                        active_screens.push(Screen::Options);
+                        continue 'update_loop
+                    }
+                }
+                // Console gained focus: Do nothing, just let player continue
+                Event::FocusGained => { }
+                // NOTE We do not handle mouse events (yet?)
+                Event::Mouse(MouseEvent) => { }
+                // Ignore pasted text
+                Event::Paste(String) => { }
             }
         }
 
@@ -146,9 +147,10 @@ pub fn run(w: &mut impl Write) -> std::io::Result<()> {
         std::thread::sleep(delay - elapsed);
     }
     
-    w.execute(style::ResetColor)?
-        .execute(cursor::Show)?
-        .execute(terminal::LeaveAlternateScreen)?;
+    w.execute(style::ResetColor)?;
+    w.execute(cursor::Show)?;
+    w.execute(terminal::LeaveAlternateScreen)?;
+    // TODO support kitty someday w.execute(event::PopKeyboardEnhancementFlags)?;
     terminal::disable_raw_mode()?;
     Ok(())
 }
