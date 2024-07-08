@@ -1,7 +1,7 @@
 use crate::backend::game::{Button, ButtonChange, ButtonMap, Game, Gamemode};
 
 use std::{
-    collections::HashMap, io::Write, sync::mpsc, time::{Duration, Instant}
+    collections::HashMap, io::Write, num::NonZeroU32, sync::mpsc, time::{Duration, Instant}
 };
 
 //use device_query;
@@ -14,6 +14,8 @@ use crossterm::{
 };
 use device_query::{keymap as dq, DeviceEvents};
 
+type ScreenStackUpdate = (usize, Vec<Screen>);
+
 const GAME_FPS: f64 = 60.0; // 60fps
 
 struct Settings {
@@ -23,19 +25,12 @@ struct Settings {
 
 enum Screen {
     Title, //TODO Store selected gamemode or smth for the selection screen for convenience
-    Gaming(Game),
+    Gaming(Box<Game>),
     Settings, //TODO Get inspired by Noita's system on how to handle exiting to main menu (or not) or how to start a new game while within a game and pausing/opening settings
 }
 
-enum ScreenChange {
-    Exit,
-    Keep,
-    Enter(Screen),
-}
-
-
-fn enter_title_screen(w: &mut dyn Write) -> std::io::Result<ScreenChange> {
-    return Ok(ScreenChange::Enter(Screen::Gaming(Game::new(Gamemode::endless()))));
+fn enter_title_screen(w: &mut dyn Write) -> std::io::Result<ScreenStackUpdate> {
+    Ok((0, vec![Screen::Gaming(Box::new(Game::new(Gamemode::endless())))]))
     /*TODO make title screen
     while event::poll(Duration::from_secs(0))? {
         match event::read()? {
@@ -72,12 +67,12 @@ fn enter_title_screen(w: &mut dyn Write) -> std::io::Result<ScreenChange> {
     }*/
 }
 
-fn enter_settings(w: &mut dyn Write, settings: &mut Settings) -> std::io::Result<ScreenChange> {
+fn enter_settings(w: &mut dyn Write, settings: &mut Settings) -> std::io::Result<ScreenStackUpdate> {
     //TODO implement options overlay
-    return Ok(ScreenChange::Exit);
+    Ok((1,Vec::new()))
 }
 
-fn enter_game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> std::io::Result<ScreenChange> {
+fn enter_game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> std::io::Result<ScreenStackUpdate> {
     // Prepare channel with which to communicate Button inputs / game interrupt
     let (sx1, rx) = mpsc::channel();
     let sx2 = sx1.clone();
@@ -117,7 +112,7 @@ fn enter_game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> std::i
         let next_frame = game_loop_start + Duration::from_secs_f64(f64::from(i) / GAME_FPS);
         let frame_delay = next_frame - Instant::now();
         match rx.recv_timeout(frame_delay) {
-            Ok(None) => return Ok(ScreenChange::Enter(Screen::Settings)),
+            Ok(None) => return Ok((0,vec![Screen::Settings])),
             Ok(Some((button, is_press_down))) => {
                 let now = Instant::now();
                 let mut changes = ButtonMap::default();
@@ -132,7 +127,7 @@ fn enter_game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> std::i
         };
         //TODO draw game!
     }
-    Ok(ScreenChange::Exit)
+    Ok((1,vec![]))
 }
 
 pub fn run(w: &mut impl Write) -> std::io::Result<()> {
@@ -158,17 +153,14 @@ pub fn run(w: &mut impl Write) -> std::io::Result<()> {
             break;
         };
         // Enter screen until it returns what to do next
-        let update = match screen {
+        let (screens_pop, screens_push) = match screen {
             Screen::Title => enter_title_screen(w),
             Screen::Settings => enter_settings(w, &mut settings),
             Screen::Gaming(game) => enter_game(w, &settings, game),
         }?;
         // Change screen session depending on what response screen gave
-        match update {
-            ScreenChange::Exit => { active_screens.pop(); },
-            ScreenChange::Keep => { }
-            ScreenChange::Enter(new_screen) => { active_screens.push(new_screen); }
-        }
+        active_screens.truncate(active_screens.len() - screens_pop);
+        active_screens.extend(screens_push);
     }
     // Deinitialize console
     w.execute(style::ResetColor)?;

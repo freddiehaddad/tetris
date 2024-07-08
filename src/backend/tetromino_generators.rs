@@ -1,5 +1,7 @@
 use crate::backend::game::Tetromino;
 
+use std::num::NonZeroU32;
+
 use rand::{
     self,
     distributions::{Distribution, Uniform, WeightedIndex},
@@ -13,6 +15,7 @@ pub struct RandomGen {
 }
 
 impl RandomGen {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         RandomGen {
             rng: rand::thread_rng(),
@@ -41,12 +44,12 @@ pub struct BagGen {
 }
 
 impl BagGen {
-    pub fn new(n: u32) -> Self {
-        assert!(n != 0, "bag multiplicity must be > 0");
+    #[allow(dead_code)]
+    pub fn new(n: NonZeroU32) -> Self {
         BagGen {
             rng: rand::thread_rng(),
-            leftover: [n; 7],
-            bag_multiplicity: n,
+            leftover: [n.get(); 7],
+            bag_multiplicity: n.get(),
         }
     }
 }
@@ -74,6 +77,7 @@ pub struct TotalRelativeProbGen {
 }
 
 impl TotalRelativeProbGen {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         TotalRelativeProbGen {
             rng: rand::thread_rng(),

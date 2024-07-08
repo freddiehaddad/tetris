@@ -285,7 +285,7 @@ impl Game {
         }
     }
 
-    pub fn get_visuals<'a>(&'a self) -> (&'a Board, Option<[Coord; 4]>, Option<[Coord; 4]>, &VecDeque<Tetromino>) {
+    pub fn get_visuals(&self) -> (&Board, Option<[Coord; 4]>, Option<[Coord; 4]>, &VecDeque<Tetromino>) {
         (
             &self.board,
             self.active_piece.as_ref().map(|p| p.minos()),
@@ -295,7 +295,7 @@ impl Game {
         )
     }
 
-    pub fn get_stats<'a>(&'a self) -> (&'a Gamemode, u64, u64, u64, Instant) {
+    pub fn get_stats(&self) -> (&Gamemode, u64, u64, u64, Instant) {
         (
             &self.mode,
             self.lines_cleared,

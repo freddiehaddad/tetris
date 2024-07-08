@@ -19,12 +19,14 @@ fn first_valid_kick(board: Board, old_piece: ActivePiece, right_turns: i32, kick
     })
 }
 
+#[allow(dead_code)]
 pub fn rotate_dummy(board: Board, piece: ActivePiece, right_turns: i32) -> Option<ActivePiece> {
     first_valid_kick(board, piece, right_turns, std::iter::once((0,0)))
 }
 
+#[allow(dead_code)]
 pub fn rotate_classic(board: Board, piece: ActivePiece, right_turns: i32) -> Option<ActivePiece> {
-    let ActivePiece(shape, o, pos) = piece;
+    let ActivePiece(shape, o, _pos) = piece;
     let r = match right_turns.rem_euclid(4) {
         // No rotation
         0 => return Some(piece),
