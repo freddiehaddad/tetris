@@ -1,5 +1,3 @@
-use crate::backend::game::Tetromino;
-
 use std::num::NonZeroU32;
 
 use rand::{
@@ -7,6 +5,8 @@ use rand::{
     distributions::{Distribution, Uniform, WeightedIndex},
     rngs::ThreadRng
 };
+
+use crate::backend::game::Tetromino;
 
 // Uniformly random tetromino generation.
 pub struct RandomGen {

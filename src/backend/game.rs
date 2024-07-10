@@ -1,10 +1,10 @@
+use std::{
+    collections::VecDeque, num::NonZeroU64, time::{Duration, Instant}
+};
+
 use crate::backend::{
     tetromino_generators,
     rotation_systems,
-};
-
-use std::{
-    collections::VecDeque, num::NonZeroU64, time::{Duration, Instant}
 };
 
 pub type ButtonChange = ButtonMap<Option<bool>>;
@@ -239,7 +239,7 @@ pub struct Game {
     // Settings internal
     mode: Gamemode,
     time_started: Instant,
-    last_updated: Instant,
+    time_updated: Instant,
     piece_generator: Box<dyn Iterator<Item=Tetromino>>,
     rotate_fn: rotation_systems::RotateFn,
     preview_size: usize,
@@ -249,26 +249,42 @@ pub struct Game {
     buttons_pressed: ButtonMap<bool>,
     board: Board,
     active_piece: Option<ActivePiece>,
-    preview_pieces: VecDeque<Tetromino>,
+    next_pieces: VecDeque<Tetromino>,
     // Statistics
     lines_cleared: u64,
     level: u64,
     score: u64,
 }
 
+pub struct GameStats<'a> {
+    gamemode: &'a Gamemode,
+    lines_cleared: u64,
+    level: u64,
+    score: u64,
+    time_started: Instant,
+    time_updated: Instant,
+}
+
+pub struct GameVisuals<'a> {
+    board: &'a Board, 
+    active_piece: Option<[Coord; 4]>,
+    ghost_piece: Option<[Coord; 4]>,
+    next_pieces: &'a VecDeque<Tetromino>,
+}
+
 impl Game {
-    pub const HEIGHT: usize = 22;
+    pub const HEIGHT: usize = 32;
     pub const WIDTH: usize = 10;
 
     pub fn new(mode: Gamemode) -> Self {
         let time_started = Instant::now();
         let mut generator = tetromino_generators::RecencyProbGen::new();
         let preview_size = 1;
-        let preview_pieces = generator.by_ref().take(preview_size).collect();
+        let next_pieces = generator.by_ref().take(preview_size).collect();
         Game {
             mode,
             time_started,
-            last_updated: time_started,
+            time_updated: time_started,
             piece_generator: Box::new(generator),
             rotate_fn: rotation_systems::rotate_classic,
             preview_size,
@@ -277,7 +293,7 @@ impl Game {
             buttons_pressed: ButtonMap::default(),
             board: Default::default(),
             active_piece: None,
-            preview_pieces,
+            next_pieces,
             
             lines_cleared: 0,
             level: 0,
@@ -285,36 +301,44 @@ impl Game {
         }
     }
 
-    pub fn get_visuals(&self) -> (&Board, Option<[Coord; 4]>, Option<[Coord; 4]>, &VecDeque<Tetromino>) {
-        (
-            &self.board,
-            self.active_piece.as_ref().map(|p| p.minos()),
-            self.ghost_piece(),
-            &self.preview_pieces,
+    pub fn get_visuals(&self) -> GameVisuals {
+        GameVisuals {
+            board: &self.board,
+            active_piece: self.active_piece.as_ref().map(|p| p.minos()),
+            ghost_piece: self.ghost_piece(),
+            next_pieces: &self.next_pieces,
             // TODO Return current GameState, timeinterval (so we can render e.g. lineclears with intermediate states),
-        )
+        }
     }
 
-    pub fn get_stats(&self) -> (&Gamemode, u64, u64, u64, Instant) {
-        (
-            &self.mode,
-            self.lines_cleared,
-            self.level,
-            self.score,
-            self.time_started,
-        )
+    pub fn get_stats(&self) -> GameStats {
+        GameStats {
+            gamemode: &self.mode,
+            lines_cleared: self.lines_cleared,
+            level: self.level,
+            score: self.score,
+            time_started: self.time_started,
+            time_updated: self.time_updated,
+        }
     }
 
-    fn ghost_piece(&self) -> Option<[Coord; 4]> {
-        todo!() // TODO compute ghost piece
+    pub fn update(&mut self, interaction: Option<ButtonChange>, up_to: Instant) -> Option<bool> {
+        todo!() // TODO Complete state machine.
+        
+        // Handle game over: return immediately
+        // 
+        // Spawn piece
+        // Move piece
+        // Drop piece
+        // Check pattern (lineclear)
+        // Update score (B2B?? Combos?? Perfect clears??)
+        // Update level
+        // Return desired next update
+
     }
 
-    fn level_from_lineclears(lns: u64) {
-        todo!() // TODO 10ln / level?
-    }
-
-    fn droptime(lvl: u64) -> Duration {
-        Duration::from_nanos(match lvl {
+    fn droptime(&self) -> Duration {
+        Duration::from_nanos(match self.level {
             1  => 1_000_000_000,
             2  =>   793_000_000,
             3  =>   617_796_000,
@@ -338,18 +362,7 @@ impl Game {
         })
     }
 
-    pub fn update(&mut self, interaction: Option<ButtonChange>, up_to: Instant) -> Option<bool> {
-        todo!() // TODO Complete state machine.
-        
-        // Handle game over: return immediately
-        // 
-        // Spawn piece
-        // Move piece
-        // Drop piece
-        // Check pattern (lineclear)
-        // Update score (B2B?? Combos?? Perfect clears??)
-        // Update level
-        // Return desired next update
-
+    fn ghost_piece(&self) -> Option<[Coord; 4]> {
+        todo!() //TODO compute ghost piece
     }
 }

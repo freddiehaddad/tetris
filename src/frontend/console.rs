@@ -1,23 +1,23 @@
-use crate::backend::game::{Button, ButtonChange, ButtonMap, Game, Gamemode};
-
 use std::{
-    collections::HashMap, io::Write, num::NonZeroU32, sync::mpsc, time::{Duration, Instant}
+    collections::HashMap, io::{self, Write}, sync::mpsc, time::{Duration, Instant}
 };
 
 //use device_query;
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{self, Event, KeyCode as ctKeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     style,
     terminal,
     ExecutableCommand, QueueableCommand,
 };
-use device_query::{keymap as dq, DeviceEvents};
+use device_query::{keymap::Keycode as dqKeyCode, DeviceEvents};
+
+use crate::backend::game::{Button, ButtonChange, Game, Gamemode};
 
 const GAME_FPS: f64 = 60.0; // 60fps
 
 struct Settings {
-    keybinds: HashMap<dq::Keycode, Button>,
+    keybinds: HashMap<dqKeyCode, Button>,
     //TODO information stored throughout application?
 }
 
@@ -42,7 +42,7 @@ enum MenuUpdate {
 }
 
 impl Menu {
-    fn title(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn title(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!()/*TODO
         while event::poll(Duration::from_secs(0))? {
             match event::read()? {
@@ -79,11 +79,11 @@ impl Menu {
         }*/
     }
 
-    fn newgame(w: &mut dyn Write, gamemode: &mut Gamemode) -> std::io::Result<MenuUpdate> {
+    fn newgame(w: &mut dyn Write, gamemode: &mut Gamemode) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> std::io::Result<MenuUpdate> {
+    fn game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> io::Result<MenuUpdate> {
         // Prepare channel with which to communicate Button inputs / game interrupt
         let (sx1, rx) = mpsc::channel();
         let sx2 = sx1.clone();
@@ -92,27 +92,29 @@ impl Menu {
         // Initialize callbacks which send Button inputs
         let device_state = device_query::DeviceState::new();
         let _guard1 =  device_state.on_key_down(move |key| {
+            let instant = Instant::now();
             let signal = match key {
                 // Escape pressed: send interrupt
-                dq::Keycode::Escape => None,
+                dqKeyCode::Escape => None,
                 _ => match keybinds1.get(key) {
                     // Button pressed with no binding: ignore
                     None => return,
                     // Button pressed with binding
-                    Some(&button) => Some((button, true)),
+                    Some(&button) => Some((button, true, instant)),
                 }
             };
             let _ = sx1.send(signal);
         });
         let _guard2 =  device_state.on_key_up(move |key| {
+            let instant = Instant::now();
             let signal = match key {
                 // Escape released: ignore
-                dq::Keycode::Escape => return,
+                dqKeyCode::Escape => return,
                 _ => match keybinds2.get(key) {
                     // Button pressed with no binding: ignore
                     None => return,
                     // Button released with binding
-                    Some(&button) => Some((button, false)),
+                    Some(&button) => Some((button, false, instant)),
                 }
             };
             let _ = sx2.send(signal);
@@ -126,19 +128,17 @@ impl Menu {
                 Ok(None) => {
                     return Ok(MenuUpdate::Push(Menu::Pause))
                 }
-                Ok(Some((button, is_press_down))) => {
-                    let now = Instant::now();
-                    let mut changes = ButtonMap::default();
+                Ok(Some((button, is_press_down, instant))) => {
+                    let mut changes = ButtonChange::default();
                     changes[button] = Some(is_press_down);
-                    game.update(Some(changes), now)
+                    game.update(Some(changes), instant)
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     let now = Instant::now();
                     game.update(None, now)
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    //TODO better debug
-                    return Ok(MenuUpdate::Pop)
+                    return Ok(MenuUpdate::Pop) //TODO print debug for why game crashes here
                 }
             };
 
@@ -148,56 +148,57 @@ impl Menu {
             }
 
             //TODO draw game
+            let visuals = game.get_visuals();
+            let stats = game.get_stats();
         }
         Ok(MenuUpdate::Push(Menu::Quit(String::from("TODO (currently Menu::game default exit)")))) //TODO
     }
 
-    fn pause(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn pause(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn gameover(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn gameover(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn gamecomplete(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn gamecomplete(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn options(w: &mut dyn Write, settings: &mut Settings) -> std::io::Result<MenuUpdate> {
+    fn options(w: &mut dyn Write, settings: &mut Settings) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn configurecontrols(w: &mut dyn Write, settings: &mut Settings) -> std::io::Result<MenuUpdate> {
+    fn configurecontrols(w: &mut dyn Write, settings: &mut Settings) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn replay(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn replay(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 
-    fn scores(w: &mut dyn Write) -> std::io::Result<MenuUpdate> {
+    fn scores(w: &mut dyn Write) -> io::Result<MenuUpdate> {
         todo!() //TODO
     }
 }
 
-pub fn run(w: &mut impl Write) -> std::io::Result<String> {
+pub fn run(w: &mut impl Write) -> io::Result<String> {
     // Initialize console
-    terminal::enable_raw_mode()?;
+    terminal::enable_raw_mode()?; //TODO use kitty someday w.execute(event::PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES))?;
     w.execute(terminal::EnterAlternateScreen)?;
-    w.execute(cursor::Hide)?;
-    //TODO use kitty someday w.execute(event::PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES))?;
+    w.execute(cursor::Hide)?; 
     // Prepare to run main tui loop
     let keybinds = HashMap::from([
-        (dq::Keycode::Left, Button::MoveLeft),
-        (dq::Keycode::Right, Button::MoveRight),
-        (dq::Keycode::A, Button::RotateLeft),
-        (dq::Keycode::D, Button::RotateRight),
-        (dq::Keycode::Down, Button::DropSoft),
-        (dq::Keycode::Up, Button::DropHard),
+        (dqKeyCode::Left, Button::MoveLeft),
+        (dqKeyCode::Right, Button::MoveRight),
+        (dqKeyCode::A, Button::RotateLeft),
+        (dqKeyCode::D, Button::RotateRight),
+        (dqKeyCode::Down, Button::DropSoft),
+        (dqKeyCode::Up, Button::DropHard),
     ]);
     let mut settings = Settings { keybinds };
-    let mut menu_stack = vec![Menu::Title];
+    let mut menu_stack = vec![Menu::Game(Box::new(Game::new(Gamemode::marathon())))]; //TODO make this Menu::Title
     let msg = loop {
         // Retrieve active menu, stop application if stack is empty
         let Some(screen) = menu_stack.last_mut() else {
@@ -235,7 +236,6 @@ pub fn run(w: &mut impl Write) -> std::io::Result<String> {
     w.execute(style::ResetColor)?;
     w.execute(cursor::Show)?;
     w.execute(terminal::LeaveAlternateScreen)?;
-    terminal::disable_raw_mode()?;
-    //TODO use kitty someday w.execute(event::PopKeyboardEnhancementFlags)?;
+    terminal::disable_raw_mode()?; //TODO use kitty someday w.execute(event::PopKeyboardEnhancementFlags)?;
     Ok(msg)
 }
