@@ -3,12 +3,11 @@ use std::num::NonZeroU32;
 use rand::{
     self,
     distributions::{Distribution, Uniform, WeightedIndex},
-    rngs::ThreadRng
+    rngs::ThreadRng,
 };
 
 use crate::backend::game::Tetromino;
 
-// Uniformly random tetromino generation.
 pub struct RandomGen {
     rng: ThreadRng,
     uniform: Uniform<usize>,
@@ -28,16 +27,13 @@ impl Iterator for RandomGen {
     type Item = Tetromino;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Some(rand::thread_rng().gen_range(0..=6).try_into().unwrap()) // Safety: 0 <= n <= 6
-        Some(self.uniform.sample(&mut self.rng).try_into().unwrap()) // Safety: 0 <= n <= 6
+        // SAFETY: 0 <= uniform_sample <= 6.
+        Some(self.uniform.sample(&mut self.rng).try_into().unwrap()) // Alternative random gen: `Some(rand::thread_rng().gen_range(0..=6).try_into().unwrap())`.
     }
 }
 
-// Bag-system for tetromino generation.
-// All 7 tetrominos are put in a bag, shuffled, and handed out; repeat if empty.
-// The bag multiplicity says how many copies of all 7 tetrominos are put in.
 pub struct BagGen {
-    // Invariants: self.leftover.iter().sum::<u32>() > 0
+    // INVARIANT: self.leftover.iter().sum::<u32>() > 0.
     rng: ThreadRng,
     leftover: [u32; 7],
     bag_multiplicity: u32,
@@ -58,19 +54,19 @@ impl Iterator for BagGen {
     type Item = Tetromino;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let weights = self.leftover.iter().map(|&c| if c > 0 {1} else {0});
-        let i = WeightedIndex::new(weights).unwrap().sample(&mut self.rng); // Safety: (yes)
-        // Adapt individual tetromino number and maybe replenish bag
-        self.leftover[i] -= 1;
+        let weights = self.leftover.iter().map(|&c| if c > 0 { 1 } else { 0 });
+        // SAFETY: Struct invariant.
+        let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
+        // Update individual tetromino number and maybe replenish bag (ensuring invariant).
+        self.leftover[idx] -= 1;
         if self.leftover.iter().sum::<u32>() == 0 {
             self.leftover = [self.bag_multiplicity; 7];
         }
-        Some(i.try_into().unwrap()) // Safety: 0 <= n <= 6
+        // SAFETY: 0 <= idx <= 6.
+        Some(idx.try_into().unwrap())
     }
 }
 
-// A probabilistic generator that weighs the probabilities by
-// how often a tetromino has appeared compared to the others. 
 pub struct TotalRelativeProbGen {
     rng: ThreadRng,
     relative_counts: [u32; 7],
@@ -90,24 +86,24 @@ impl Iterator for TotalRelativeProbGen {
     type Item = Tetromino;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let weight = |&x| 1.0 / f64::from(x).exp(); // x -> 1 / exp x
-        // let weight = |&x| 1.0 / (f64::from(x) + 1.0); // x -> 1 / (1 + x)
-        let weights = self.relative_counts.iter().map(weight);
-        let i = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
-        // Adapt individual tetromino counter and maybe rebalance all relative counts
-        self.relative_counts[i] += 1;
-        let min = *self.relative_counts.iter().min().unwrap(); // Safety: minimum always exists
+        let weighing = |&x| 1.0 / f64::from(x).exp(); // Alternative weighing function: `1.0 / (f64::from(x) + 1.0);`
+        let weights = self.relative_counts.iter().map(weighing);
+        // SAFETY: `weights` will always be non-zero due to `weighing`.
+        let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
+        // Update individual tetromino counter and maybe rebalance all relative counts
+        self.relative_counts[idx] += 1;
+        // SAFETY: `self.relative_counts` always has a minimum.
+        let min = *self.relative_counts.iter().min().unwrap();
         if min > 0 {
             for x in self.relative_counts.iter_mut() {
                 *x -= min;
             }
         }
-        Some(i.try_into().unwrap()) // Safety: 0 <= n <= 6
+        // SAFETY: 0 <= idx <= 6.
+        Some(idx.try_into().unwrap())
     }
 }
 
-// A probabilistic generator that weighs the probabilities by
-// how recently a tetromino has appeared. 
 pub struct RecencyProbGen {
     rng: ThreadRng,
     last_played: [u32; 7],
@@ -126,19 +122,24 @@ impl Iterator for RecencyProbGen {
     type Item = Tetromino;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // let weight = |x| x; // x -> x
-        // let weight = |&x| f64::from(x).powf(1.5); // x -> x^1.5
-        let weight = |x| x*x; // x -> x^2
-        // let weight = |&x| f64::from(x).exp() - 1.0; // x -> exp x - 1
-        let weights = self.last_played.iter().map(weight);
-        let i = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
-        // Adapt all tetromino last_played values and maybe rebalance all relative counts
+        /* Choice among these weighing functions:
+         * `|x| x; // x -> x`
+         * `|&x| f64::from(x).powf(1.5); // x -> x^1.5`
+         * `|x| x * x; // x -> x^2`
+         * `|&x| f64::from(x).exp() - 1.0; // x -> exp x - 1`
+         */
+        let weighing = |x| x * x;
+        let weights = self.last_played.iter().map(weighing);
+        // SAFETY: `weights` will always be non-zero due to `weighing`.
+        let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
+        // Update all tetromino last_played values and maybe rebalance all relative counts..
         for x in self.last_played.iter_mut() {
             *x += 1;
         }
-        self.last_played[i] = 0;
-        Some(i.try_into().unwrap()) // Safety: 0 <= n <= 6
+        self.last_played[idx] = 0;
+        // SAFETY: 0 <= idx <= 6.
+        Some(idx.try_into().unwrap())
     }
 }
 
-// TODO NESRandomGen c.f. https://meatfighter.com/nintendotetrisai/#Spawning_Tetriminos
+// TODO: Program [NESRandomGen](https://meatfighter.com/nintendotetrisai/#Spawning_Tetriminos).
