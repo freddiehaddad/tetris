@@ -26,7 +26,7 @@ struct Settings {
 enum Menu {
     Title,
     NewGame(Gamemode),
-    Game(Box<Game>),
+    Game(Box<Game>, Duration, Instant),
     Pause,
     GameOver,
     GameComplete,
@@ -87,7 +87,15 @@ impl Menu {
         todo!() // TODO:
     }
 
-    fn game(w: &mut dyn Write, settings: &Settings, game: &mut Game) -> io::Result<MenuUpdate> {
+    fn game(
+        w: &mut dyn Write,
+        settings: &Settings,
+        game: &mut Game,
+        duration_paused_total: &mut Duration,
+        time_paused: &mut Instant,
+    ) -> io::Result<MenuUpdate> {
+        let time_unpaused = Instant::now();
+        *duration_paused_total += time_unpaused.saturating_duration_since(*time_paused);
         // Prepare channel with which to communicate `Button` inputs / game interrupt.
         let (sx1, rx) = mpsc::channel();
         let sx2 = sx1.clone();
@@ -126,25 +134,25 @@ impl Menu {
         });
         let mut buttons_pressed = ButtonsPressed::default();
         // Game Loop
-        let game_loop_start = Instant::now();
-        for i in 1u32.. {
-            let next_frame = game_loop_start + Duration::from_secs_f64(f64::from(i) / GAME_FPS);
+        let loop_start = Instant::now();
+        let it = 1u32;
+        let next_menu = loop {
+            let next_frame = loop_start + Duration::from_secs_f64(f64::from(it) / GAME_FPS);
             let frame_delay = next_frame - Instant::now();
             match rx.recv_timeout(frame_delay) {
-                Ok(None) => return Ok(MenuUpdate::Push(Menu::Pause)),
+                Ok(None) => break MenuUpdate::Push(Menu::Pause),
                 Ok(Some((button, button_state, instant))) => {
                     buttons_pressed[button] = button_state;
-                    game.update(Some(buttons_pressed), instant)
+                    game.update(Some(buttons_pressed), instant - *duration_paused_total)
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     let now = Instant::now();
-                    game.update(None, now)
+                    game.update(None, now - *duration_paused_total)
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    return Ok(MenuUpdate::Pop); // TODO: Print debug for why game crashes here.
+                    unreachable!("game loop RecvTimeoutError::Disconnected")
                 }
             };
-
             // Exit if game ended
             if let Some(good_end) = game.finish_status() {
                 let menu = if good_end {
@@ -152,15 +160,13 @@ impl Menu {
                 } else {
                     Menu::GameOver
                 };
-                return Ok(MenuUpdate::Push(menu));
+                break MenuUpdate::Push(menu);
             }
-
             // TODO: Draw game.
             let info = game.info();
-        }
-        Ok(MenuUpdate::Push(Menu::Quit(String::from(
-            "Menu::game default exit", // TODO: Return more precise error msg.
-        )))) // TODO:
+        };
+        *time_paused = Instant::now();
+        Ok(next_menu)
     }
 
     fn pause(w: &mut dyn Write) -> io::Result<MenuUpdate> {
@@ -210,9 +216,13 @@ pub fn run(w: &mut impl Write) -> io::Result<String> {
         (dqKeyCode::Up, Button::DropHard),
     ]);
     let mut settings = Settings { keybinds };
-    let mut menu_stack = vec![Menu::Game(Box::new(Game::with_gamemode(
-        Gamemode::marathon(),
-    )))]; // TODO: make this `Menu::Title`.
+    let mut menu_stack = Vec::new();
+    menu_stack.push(Menu::Title);
+    menu_stack.push(Menu::Game(
+        Box::new(Game::new(Gamemode::marathon(), Instant::now())),
+        Duration::ZERO,
+        Instant::now(),
+    )); // TODO: Remove this once menus are navigable.
     let msg = loop {
         // Retrieve active menu, stop application if stack is empty.
         let Some(screen) = menu_stack.last_mut() else {
@@ -222,7 +232,9 @@ pub fn run(w: &mut impl Write) -> io::Result<String> {
         let menu_update = match screen {
             Menu::Title => Menu::title(w),
             Menu::NewGame(gamemode) => Menu::newgame(w, gamemode),
-            Menu::Game(game) => Menu::game(w, &settings, game),
+            Menu::Game(game, total_duration_paused, last_paused) => {
+                Menu::game(w, &settings, game, total_duration_paused, last_paused)
+            }
             Menu::Pause => Menu::pause(w),
             Menu::GameOver => Menu::gameover(w),
             Menu::GameComplete => Menu::gamecomplete(w),

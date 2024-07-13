@@ -94,6 +94,7 @@ enum GameOverError {
     BlockOut,
 }
 
+/// TODO: Documentation. "Does not query time anywhere, it's the user's responsibility to handle time correctly."
 // TODO: `#[derive(Debug)]`.
 pub struct Game {
     // Game "state" fields.
@@ -112,7 +113,7 @@ pub struct Game {
     /// * The Preview size stays constant: `self.next_pieces().size() == old(self.next_pieces().size())`.
     time_started: Instant,
     time_updated: Instant,
-    pieces_played: u64,
+    pieces_played: [u64; 7],
     lines_cleared: u64,
     level: u64, // TODO: Make this into NonZeroU64 or explicitly allow level 0.
     score: u64,
@@ -205,17 +206,33 @@ impl Tetromino {
 impl TryFrom<usize> for Tetromino {
     type Error = ();
 
-    fn try_from(n: usize) -> Result<Self, Self::Error> {
-        Ok(match n {
-            0 => Tetromino::O,
-            1 => Tetromino::I,
-            2 => Tetromino::S,
-            3 => Tetromino::Z,
-            4 => Tetromino::T,
-            5 => Tetromino::L,
-            6 => Tetromino::J,
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        use Tetromino::*;
+        Ok(match value {
+            0 => O,
+            1 => I,
+            2 => S,
+            3 => Z,
+            4 => T,
+            5 => L,
+            6 => J,
             _ => Err(())?,
         })
+    }
+}
+
+impl From<Tetromino> for usize {
+    fn from(value: Tetromino) -> Self {
+        use Tetromino::*;
+        match value {
+            O => 0,
+            I => 1,
+            S => 2,
+            Z => 3,
+            T => 4,
+            L => 5,
+            J => 6,
+        }
     }
 }
 
@@ -358,8 +375,7 @@ impl Game {
     pub const HEIGHT: usize = 27;
     pub const WIDTH: usize = 10;
 
-    pub fn with_gamemode(mode: Gamemode) -> Self {
-        let time_started = Instant::now();
+    pub fn new(mode: Gamemode, time_started: Instant) -> Self {
         let mut generator = tetromino_generators::RecencyProbGen::new();
         let preview_size = 1;
         let next_pieces = generator.by_ref().take(preview_size).collect();
@@ -370,9 +386,9 @@ impl Game {
             board: Default::default(),
             active_piece: None,
             next_pieces,
-            time_started,
+            time_started, // TODO: Refactor internal timeline to be Duration-based, shifting responsibility higher up.
             time_updated: time_started,
-            pieces_played: 0,
+            pieces_played: [0; 7],
             lines_cleared: 0,
             level: mode.start_level,
             score: 0,
@@ -447,7 +463,7 @@ impl Game {
                         MeasureStat::Lines(lines) => lines <= self.lines_cleared,
                         MeasureStat::Level(level) => level <= self.level,
                         MeasureStat::Score(score) => score <= self.score,
-                        MeasureStat::Pieces(pieces) => pieces <= self.pieces_played,
+                        MeasureStat::Pieces(pieces) => pieces <= self.pieces_played.iter().sum(),
                         MeasureStat::Time(timer) => timer <= self.time_updated - self.time_started,
                     };
                     if goal_achieved {
@@ -605,7 +621,7 @@ impl Game {
                 };
                 self.active_piece = Some(new_piece);
                 if new_piece.fits(self.board) {
-                    self.pieces_played += 1;
+                    self.pieces_played[<usize>::from(new_tetromino)] += 1;
                     self.events.insert(Event::Fall, time);
                 // Newly spawned piece conflicts with board - Game over!
                 } else {
