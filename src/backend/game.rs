@@ -1,7 +1,7 @@
 // TODO: Too many (unnecessary) derives for all the structs?
 use std::{
     collections::{HashMap, VecDeque},
-    num::NonZeroU64,
+    num::{NonZeroU32, NonZeroU64},
     time::{Duration, Instant},
 };
 
@@ -9,7 +9,7 @@ use crate::backend::{rotation_systems, tetromino_generators};
 
 pub type ButtonsPressed = ButtonMap<bool>;
 // NOTE: Would've liked to use `impl Game { type Board = ...` (https://github.com/rust-lang/rust/issues/8995)
-pub type TileTypeID = usize;
+pub type TileTypeID = NonZeroU32;
 pub type Line = [Option<TileTypeID>; Game::WIDTH];
 pub type Board = Vec<Line>;
 pub type Coord = (usize, usize);
@@ -147,15 +147,15 @@ pub struct Game {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct GameState<'a> {
-    gamemode: &'a Gamemode,
-    lines_cleared: &'a Vec<Line>,
-    level: u64,
-    score: u64,
-    time_started: Instant,
-    time_updated: Instant,
-    board: &'a Board,
-    active_piece: Option<ActivePiece>,
-    next_pieces: &'a VecDeque<Tetromino>,
+    pub gamemode: &'a Gamemode,
+    pub lines_cleared: &'a Vec<Line>,
+    pub level: u64,
+    pub score: u64,
+    pub time_started: Instant,
+    pub time_updated: Instant,
+    pub board: &'a Board,
+    pub active_piece: Option<ActivePiece>,
+    pub next_pieces: &'a VecDeque<Tetromino>,
 }
 
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
@@ -163,7 +163,7 @@ pub enum VisualEvent {
     PieceLocked(ActivePiece),
     LineClears(Vec<usize>),
     HardDrop(ActivePiece, ActivePiece),
-    Accolade(Tetromino, bool, u64, u64),
+    Accolade(Tetromino, bool, u64, u64, bool),
 }
 
 impl Orientation {
@@ -221,6 +221,21 @@ impl Tetromino {
                 W => [(0, 0), (1, 0), (1, 1), (1, 2)], // ⠼
             },
         }
+    }
+
+    const fn tiletypeid(&self) -> TileTypeID {
+        use Tetromino::*;
+        let u8 = match self {
+            O => 1,
+            I => 2,
+            S => 3,
+            Z => 4,
+            T => 5,
+            L => 6,
+            J => 7,
+        };
+        // SAFETY: Ye, `u8 > 0`;
+        unsafe { NonZeroU32::new_unchecked(u8) }
     }
 }
 
@@ -682,7 +697,7 @@ impl Game {
                 // Pre-save whether piece was spun into lock position.
                 let spin = active_piece.fits_at(&self.board, (0, 1)).is_none();
                 // Locking.
-                let minotype = usize::from(active_piece.shape);
+                let minotype = active_piece.shape.tiletypeid();
                 for (x, y) in active_piece.tiles() {
                     self.board[y][x] = Some(minotype);
                 }
@@ -726,6 +741,7 @@ impl Game {
                         spin,
                         n_lines_cleared,
                         self.consecutive_line_clears,
+                        perfect_clear,
                     );
                     visual_events.push((event_time, yippie));
                     // Increment level if 10 lines cleared.

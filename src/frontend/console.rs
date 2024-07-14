@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::{self, format},
     io::{self, Write},
     sync::mpsc,
     time::{Duration, Instant},
@@ -12,7 +13,9 @@ use crossterm::{
 };
 use device_query::{keymap::Keycode as dqKeyCode, DeviceEvents};
 
-use crate::backend::game::{Button, ButtonsPressed, Game, Gamemode};
+use crate::backend::game::{
+    Button, ButtonsPressed, Game, GameState, Gamemode, TileTypeID, VisualEvent,
+};
 
 const GAME_FPS: f64 = 60.0; // 60fps
 
@@ -154,8 +157,80 @@ impl Menu {
                 }
             };
             // TODO: Draw game.
+            let GameState {
+                gamemode,
+                lines_cleared,
+                level,
+                score,
+                time_started,
+                time_updated,
+                board,
+                active_piece,
+                next_pieces,
+            } = game.state();
+            w.queue(terminal::Clear(terminal::ClearType::All))?
+                .queue(cursor::MoveTo(0, 0))?;
+            // TODO: Make proper function.
+            let fmt_cell = |cell: Option<TileTypeID>| {
+                cell.map_or("  ", |mino| match mino.get() {
+                    0 => "OO",
+                    1 => "II",
+                    2 => "SS",
+                    3 => "ZZ",
+                    4 => "TT",
+                    5 => "LL",
+                    6 => "JJ",
+                    _ => todo!("formatting unknown mino type"),
+                })
+            };
+            for line in board {
+                let fmt_line = line
+                    .iter()
+                    .map(|cell| fmt_cell(*cell))
+                    .collect::<Vec<&str>>()
+                    .join("");
+                w.queue(style::Print(fmt_line))?
+                    .queue(cursor::MoveToNextLine(1))?;
+            }
             // TODO: Do something with visual events.
-            let state = game.state();
+            for (_, visual_event) in visual_events {
+                match visual_event {
+                    VisualEvent::PieceLocked(_) => todo!(),
+                    VisualEvent::LineClears(_) => todo!(),
+                    VisualEvent::HardDrop(_, _) => todo!(),
+                    VisualEvent::Accolade(
+                        tetromino,
+                        spin,
+                        n_lines_cleared,
+                        combo,
+                        perfect_clear,
+                    ) => {
+                        let mut txts = Vec::new();
+                        if spin {
+                            txts.push(format!("{tetromino:?}-Spin"))
+                        }
+                        let txt_lineclear = format!(
+                            "{}",
+                            match n_lines_cleared {
+                                1 => "Single",
+                                2 => "Double",
+                                3 => "Triple",
+                                4 => "Quadle",
+                                _ => todo!("unformatted line clear count"),
+                            }
+                        );
+                        txts.push(txt_lineclear);
+                        txts.push(format!("[ x{combo} ]"));
+                        if perfect_clear {
+                            txts.push(format!("PERFECT!"));
+                        }
+                        let accolade = txts.join(" ");
+                        w.queue(style::Print(accolade))?;
+                    }
+                };
+            }
+            // Execute draw.
+            w.flush()?;
             // Exit if game ended
             if let Some(good_end) = game.finished() {
                 let menu = if good_end {
