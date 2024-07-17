@@ -1,9 +1,12 @@
 use crate::backend::game::{ActivePiece, Board, Orientation, Tetromino};
 
-pub type RotateFn = fn(piece: ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece>;
-
 pub trait RotationSystem {
-    fn rotate(&mut self, piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece>;
+    fn rotate(
+        &mut self,
+        piece: &ActivePiece,
+        board: &Board,
+        right_turns: i32,
+    ) -> Option<ActivePiece>;
     fn place_initial(&mut self, tetromino: Tetromino) -> ActivePiece;
 }
 
@@ -20,7 +23,12 @@ pub trait RotationSystem {
 pub struct Classic;
 
 impl RotationSystem for Classic {
-    fn rotate(&mut self, old_piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+    fn rotate(
+        &mut self,
+        old_piece: &ActivePiece,
+        board: &Board,
+        right_turns: i32,
+    ) -> Option<ActivePiece> {
         let mut new_piece = *old_piece;
         new_piece.orientation = old_piece.orientation.rotate_r(right_turns);
         let right_rotation = match right_turns.rem_euclid(4) {
@@ -76,7 +84,12 @@ impl RotationSystem for Classic {
 pub struct Okay;
 
 impl RotationSystem for Okay {
-    fn rotate(&mut self, piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+    fn rotate(
+        &mut self,
+        piece: &ActivePiece,
+        board: &Board,
+        right_turns: i32,
+    ) -> Option<ActivePiece> {
         todo!() // TODO: Implement Okay Rotation System.
     }
 

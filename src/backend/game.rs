@@ -6,7 +6,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::backend::{rotation_systems::{self, RotationSystem}, tetromino_generators};
+use crate::backend::{
+    rotation_systems::{self, RotationSystem},
+    tetromino_generators,
+};
 
 pub type ButtonsPressed = ButtonMap<bool>;
 // NOTE: Would've liked to use `impl Game { type Board = ...` (https://github.com/rust-lang/rust/issues/8995)
@@ -466,16 +469,22 @@ impl Game {
             finished: None,
             events: HashMap::from([(Event::Spawn, config.time_started)]),
             buttons_pressed: Default::default(),
-            board: std::iter::repeat(Line::default()).take(Self::HEIGHT).collect(),
+            board: std::iter::repeat(Line::default())
+                .take(Self::HEIGHT)
+                .collect(),
             active_piece_data: None,
-            next_pieces: config.tetromino_generator.by_ref().take(config.preview_count).collect(),
+            next_pieces: config
+                .tetromino_generator
+                .by_ref()
+                .take(config.preview_count)
+                .collect(),
             time_updated: config.time_started,
             pieces_played: [0; 7],
             lines_cleared: Vec::new(),
             level: config.gamemode.start_level,
             score: 0,
             consecutive_line_clears: 0,
-            config
+            config,
         }
     }
 
@@ -680,14 +689,22 @@ impl Game {
             // We generate a new piece above the skyline, and immediately queue a fall event for it.
             Event::Spawn => {
                 let n_required_pieces = self.config.preview_count - self.next_pieces.len() + 1;
-                self.next_pieces.extend(self.config.tetromino_generator.by_ref().take(n_required_pieces));
-                let tetromino = self.next_pieces.pop_front().expect("piece generator ran out before game finished");
+                self.next_pieces.extend(
+                    self.config
+                        .tetromino_generator
+                        .by_ref()
+                        .take(n_required_pieces),
+                );
+                let tetromino = self
+                    .next_pieces
+                    .pop_front()
+                    .expect("piece generator ran out before game finished");
                 debug_assert!(
                     self.active_piece_data.is_none(),
                     "spawning new piece while an active piece is still in play"
                 );
-                let new_piece = rotation_systems::Okay.place_initial(tetromino);//self.config.rotation_system.place_initial(tetromino);
-                // Newly spawned piece conflicts with board - Game over.
+                let new_piece = rotation_systems::Okay.place_initial(tetromino); //self.config.rotation_system.place_initial(tetromino);
+                                                                                 // Newly spawned piece conflicts with board - Game over.
                 if !new_piece.fits(&self.board) {
                     return Err(GameOverError::BlockOut);
                 }
@@ -854,7 +871,9 @@ impl Game {
                     rotation += 2;
                 }
                 if let Some(rotated_piece) =
-                    self.config.rotation_system.rotate(active_piece, &self.board, rotation)
+                    self.config
+                        .rotation_system
+                        .rotate(active_piece, &self.board, rotation)
                 {
                     *active_piece = rotated_piece;
                 }
