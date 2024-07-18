@@ -370,8 +370,7 @@ impl Gamemode {
             name: String::from("Marathon"),
             start_level: NonZeroU64::MIN,
             increase_level: true,
-            // SAFETY: 30 > 0.
-            limit: Some(MeasureStat::Level(NonZeroU64::new(30).unwrap())), // NOTE: This depends on the highest level available.
+            limit: Some(MeasureStat::Level(Game::LEVEL_20G.saturating_add(1))), // NOTE: This depends on the highest level available.
             optimize: MeasureStat::Score(0),
         }
     }
@@ -393,7 +392,7 @@ impl Gamemode {
         Self {
             name: String::from("Master"),
             // SAFETY: 20 > 0.
-            start_level: NonZeroU64::new(20).unwrap(),
+            start_level: Game::LEVEL_20G,
             increase_level: true,
             limit: Some(MeasureStat::Lines(300)),
             optimize: MeasureStat::Score(0),
@@ -468,6 +467,8 @@ impl Game {
     pub const HEIGHT: usize = Self::SKYLINE + 7; // Max height *any* mino can reach before Lock out occurs.
     pub const WIDTH: usize = 10;
     pub const SKYLINE: usize = 20; // Typical maximal height of relevant (visible) playing grid.
+                                   // SAFETY: 19 > 0, and this is the level at which blocks start falling with 20G.
+    const LEVEL_20G: NonZeroU64 = unsafe { NonZeroU64::new_unchecked(19) };
 
     pub fn with_gamemode(gamemode: Gamemode, time_started: Instant) -> Self {
         let default_config = GameConfig {
@@ -546,7 +547,7 @@ impl Game {
         // Handle game over: return immediately.
         if self.finished.is_some() {
             return Err(true);
-        } else if self.time_updated <= update_time {
+        } else if !(self.time_updated <= update_time) {
             return Err(false);
         }
         // We linearly process all events until we reach the update time.
@@ -693,30 +694,13 @@ impl Game {
         // Active piece touches the ground before update (or doesn't exist, counts as not touching).
         let mut feedback_events = Vec::new();
         // TODO: Remove debug.
-        feedback_events.push((
-            event_time,
-            FeedbackEvent::Debug(format!("{event:?} at {event_time:?}")),
-        ));
+        // feedback_events.push((
+        //     event_time,
+        //     FeedbackEvent::Debug(format!("{event:?} at {event_time:?}")),
+        // ));
         let prev_piece_data = self.active_piece_data;
         let prev_piece = prev_piece_data.unzip().0;
         let next_piece = match event {
-            Event::LineClear => {
-                for y in (0..Self::HEIGHT).rev() {
-                    // Full line: move it to the cleared lines storage and push an empty line to the board.
-                    if self.board[y].iter().all(|mino| mino.is_some()) {
-                        let line = self.board.remove(y);
-                        self.board.push(Default::default());
-                        self.lines_cleared.push(line);
-                    }
-                }
-                // Increment level if 10 lines cleared.
-                if self.lines_cleared.len() % 10 == 0 {
-                    self.level = self.level.saturating_add(1);
-                }
-                self.events
-                    .insert(Event::Spawn, event_time + self.config.appearance_delay);
-                None
-            }
             // We generate a new piece above the skyline, and immediately queue a fall event for it.
             Event::Spawn => {
                 debug_assert!(
@@ -745,6 +729,91 @@ impl Game {
                 self.pieces_played[<usize>::from(tetromino)] += 1;
                 self.events.insert(Event::Fall, event_time);
                 Some(next_piece)
+            }
+            Event::Rotate => {
+                let prev_piece = prev_piece.expect("rotating none active piece");
+                // Special 20G fall immediately after.
+                if self.level >= Self::LEVEL_20G {
+                    self.events.insert(Event::Fall, event_time);
+                }
+                let mut rotation = 0;
+                if self.buttons_pressed[Button::RotateLeft] {
+                    rotation -= 1;
+                }
+                if self.buttons_pressed[Button::RotateRight] {
+                    rotation += 1;
+                }
+                if self.buttons_pressed[Button::RotateAround] {
+                    rotation += 2;
+                }
+                self.config
+                    .rotation_system
+                    .rotate(&prev_piece, &self.board, rotation)
+                    .or(Some(prev_piece))
+            }
+            Event::MoveInitial | Event::MoveRepeat => {
+                // Handle move attempt and auto repeat move.
+                let prev_piece = prev_piece.expect("moving none active piece");
+                // Special 20G fall immediately after.
+                if self.level >= Self::LEVEL_20G {
+                    self.events.insert(Event::Fall, event_time);
+                }
+                let move_delay = if event == Event::MoveInitial {
+                    self.config.delayed_auto_shift
+                } else {
+                    self.config.auto_repeat_rate
+                };
+                self.events
+                    .insert(Event::MoveRepeat, event_time + move_delay);
+                #[rustfmt::skip]
+                let dx = if self.buttons_pressed[Button::MoveLeft] { -1 } else { 1 };
+                prev_piece
+                    .fits_at(&self.board, (dx, 0))
+                    .or(Some(prev_piece))
+            }
+            Event::Fall | Event::SoftDrop => {
+                let prev_piece = prev_piece.expect("falling/softdropping none active piece");
+                if self.level >= Self::LEVEL_20G {
+                    Some(prev_piece.well_piece(&self.board))
+                } else {
+                    let drop_delay = if self.buttons_pressed[Button::DropSoft] {
+                        Duration::from_secs_f64(
+                            self.drop_delay().as_secs_f64() / self.config.soft_drop_factor,
+                        )
+                    } else {
+                        self.drop_delay()
+                    };
+                    // Try to move active piece down.
+                    if let Some(dropped_piece) = prev_piece.fits_at(&self.board, (0, -1)) {
+                        self.events.insert(Event::Fall, event_time + drop_delay);
+                        Some(dropped_piece)
+                    // Piece hit ground but SoftDrop was pressed.
+                    } else if event == Event::SoftDrop {
+                        self.events.insert(Event::Lock, event_time);
+                        Some(prev_piece)
+                    // Piece hit ground and tried to drop naturally: don't do anything but try falling again later.
+                    } else {
+                        // NOTE: This could be changed if a reason for it appears.
+                        self.events.insert(Event::Fall, event_time + drop_delay);
+                        Some(prev_piece)
+                    }
+                }
+            }
+            Event::HardDrop => {
+                let prev_piece = prev_piece.expect("harddropping none active piece");
+                // Move piece all the way down.
+                let dropped_piece = prev_piece.well_piece(&self.board);
+                feedback_events.push((
+                    event_time,
+                    FeedbackEvent::HardDrop(prev_piece, dropped_piece),
+                ));
+                self.events
+                    .insert(Event::LockTimer, event_time + self.config.hard_drop_delay);
+                Some(dropped_piece)
+            }
+            Event::LockTimer => {
+                self.events.insert(Event::Lock, event_time);
+                prev_piece
             }
             Event::Lock => {
                 let prev_piece = prev_piece.expect("locking none active piece");
@@ -825,78 +894,22 @@ impl Game {
                 }
                 None
             }
-            Event::LockTimer => {
-                self.events.insert(Event::Lock, event_time);
-                prev_piece
-            }
-            Event::HardDrop => {
-                let prev_piece = prev_piece.expect("harddropping none active piece");
-                // Move piece all the way down.
-                let dropped_piece = prev_piece.well_piece(&self.board);
-                feedback_events.push((
-                    event_time,
-                    FeedbackEvent::HardDrop(prev_piece, dropped_piece),
-                ));
+            Event::LineClear => {
+                for y in (0..Self::HEIGHT).rev() {
+                    // Full line: move it to the cleared lines storage and push an empty line to the board.
+                    if self.board[y].iter().all(|mino| mino.is_some()) {
+                        let line = self.board.remove(y);
+                        self.board.push(Default::default());
+                        self.lines_cleared.push(line);
+                    }
+                }
+                // Increment level if 10 lines cleared.
+                if self.lines_cleared.len() % 10 == 0 {
+                    self.level = self.level.saturating_add(1);
+                }
                 self.events
-                    .insert(Event::LockTimer, event_time + self.config.hard_drop_delay);
-                Some(dropped_piece)
-            }
-            Event::Fall | Event::SoftDrop => {
-                let prev_piece = prev_piece.expect("falling/softdropping none active piece");
-                let drop_delay = if self.buttons_pressed[Button::DropSoft] {
-                    Duration::from_secs_f64(
-                        self.drop_delay().as_secs_f64() / self.config.soft_drop_factor,
-                    )
-                } else {
-                    self.drop_delay()
-                };
-                // Try to move active piece down.
-                if let Some(dropped_piece) = prev_piece.fits_at(&self.board, (0, -1)) {
-                    self.events.insert(Event::Fall, event_time + drop_delay);
-                    Some(dropped_piece)
-                // Piece hit ground but SoftDrop was pressed.
-                } else if event == Event::SoftDrop {
-                    self.events.insert(Event::Lock, event_time);
-                    Some(prev_piece)
-                // Piece hit ground and tried to drop naturally: don't do anything but try falling again later.
-                } else {
-                    // TODO: Is this enough? Does this lead to inconsistent gameplay and should `Fall` be inserted outside together with locking?
-                    self.events.insert(Event::Fall, event_time + drop_delay);
-                    Some(prev_piece)
-                }
-            }
-            Event::MoveInitial | Event::MoveRepeat => {
-                // Handle move attempt and auto repeat move.
-                let prev_piece = prev_piece.expect("moving none active piece");
-                let move_delay = if event == Event::MoveInitial {
-                    self.config.delayed_auto_shift
-                } else {
-                    self.config.auto_repeat_rate
-                };
-                self.events
-                    .insert(Event::MoveRepeat, event_time + move_delay);
-                #[rustfmt::skip]
-                let dx = if self.buttons_pressed[Button::MoveLeft] { -1 } else { 1 };
-                prev_piece
-                    .fits_at(&self.board, (dx, 0))
-                    .or(Some(prev_piece))
-            }
-            Event::Rotate => {
-                let prev_piece = prev_piece.expect("rotating none active piece");
-                let mut rotation = 0;
-                if self.buttons_pressed[Button::RotateLeft] {
-                    rotation -= 1;
-                }
-                if self.buttons_pressed[Button::RotateRight] {
-                    rotation += 1;
-                }
-                if self.buttons_pressed[Button::RotateAround] {
-                    rotation += 2;
-                }
-                self.config
-                    .rotation_system
-                    .rotate(&prev_piece, &self.board, rotation)
-                    .or(Some(prev_piece))
+                    .insert(Event::Spawn, event_time + self.config.appearance_delay);
+                None
             }
         };
         let next_piece_dat =
@@ -1054,6 +1067,7 @@ impl Game {
         }
     }
 
+    // TODO: This curve could be tweaked.
     #[rustfmt::skip]
     const fn drop_delay(&self) -> Duration {
         Duration::from_nanos(match self.level.get() {
@@ -1075,10 +1089,11 @@ impl Game {
             16 =>     4_263_557,
             17 =>     2_520_084,
             18 =>     1_457_139,
-             _ =>       823_907, // TODO: Tweak curve so this matches `833_333`?
+             _ =>       823_907, // NOTE: 20G is at `833_333`, but falling speeds at that level are handled especially by the engine.
         })
     }
 
+    // TODO: This curve could be tweaked.
     #[rustfmt::skip]
     const fn lock_delay(&self) -> Duration {
         Duration::from_millis(match self.level.get() {
@@ -1093,7 +1108,7 @@ impl Game {
                 27 => 184,
                 28 => 167,
                 29 => 151,
-                 _ => 150, // TODO: Tweak curve?
+                 _ => 150,
         })
     }
 }

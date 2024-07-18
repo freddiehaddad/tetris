@@ -129,6 +129,11 @@ impl<T: Write> TetrsTerminal<T> {
             Duration::ZERO,
             Instant::now(),
         ));
+        menu_stack.push(Menu::Game(
+            Box::new(Game::with_gamemode(Gamemode::master(), Instant::now())),
+            Duration::ZERO,
+            Instant::now(),
+        ));
         // Preparing main application loop.
         let msg = loop {
             // Retrieve active menu, stop application if stack is empty.
