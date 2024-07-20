@@ -3,7 +3,7 @@ use std::{
 };
 
 use crossterm::{cursor, event::KeyCode, style::{self, Color, Stylize}, terminal, QueueableCommand};
-use tetrs_lib::{Button, FeedbackEvent, Game, GameStateView, MeasureStat, TileTypeID};
+use tetrs_lib::{Button, FeedbackEvent, Game, GameStateView, MeasureStat, Tetromino, TileTypeID};
 
 use crate::terminal_tetrs::TerminalTetrs;
 
@@ -233,6 +233,17 @@ impl GameScreenRenderer for UnicodeRenderer {
         let key_icons_dropsoft = ctx.settings.keybinds.iter().filter_map(|(&k, &b)| (b==Button::DropSoft).then_some(fmt_key(k))).collect::<Vec<String>>().join(" ");
         let key_icons_drophard = ctx.settings.keybinds.iter().filter_map(|(&k, &b)| (b==Button::DropHard).then_some(fmt_key(k))).collect::<Vec<String>>().join(" ");
         let key_icons_drop = format!("{key_icons_dropsoft} {key_icons_drophard}");
+        let piececnts_o = format!("{}o", pieces_played[usize::from(Tetromino::O)]);
+        let piececnts_i_s_z = vec![
+            format!("{}i", pieces_played[usize::from(Tetromino::I)]),
+            format!("{}s", pieces_played[usize::from(Tetromino::S)]),
+            format!("{}z", pieces_played[usize::from(Tetromino::Z)]),
+        ].join("  ");
+        let piececnts_t_l_j = vec![
+            format!("{}t", pieces_played[usize::from(Tetromino::T)]),
+            format!("{}l", pieces_played[usize::from(Tetromino::L)]),
+            format!("{}j", pieces_played[usize::from(Tetromino::J)]),
+        ].join("  ");
         // Draw main screen assets (stats, frame, bg).
         let mut screen = Vec::new();
         screen.push(format!("                        ╓╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╥─────mode─────┐", ));
@@ -247,9 +258,9 @@ impl GameScreenRenderer for UnicodeRenderer {
         screen.push(format!("                        ║                    ║─────next─────┐", ));
         screen.push(format!("     PIECES             ║                    ║              │", ));
         screen.push(format!("     ──────╴            ║                    ║              │", ));
-        screen.push(format!("     27o                ║                    ║──────────────┘", ));
-        screen.push(format!("     27i  25s  26z      ║                    ║               ", ));
-        screen.push(format!("     28t  26l  25j      ║                    ║               ", ));
+        screen.push(format!("     {:<19             }║                    ║──────────────┘", piececnts_o));
+        screen.push(format!("     {:<19             }║                    ║               ", piececnts_i_s_z));
+        screen.push(format!("     {:<19             }║                    ║               ", piececnts_t_l_j));
         screen.push(format!("                        ║                    ║               ", ));
         screen.push(format!("     CONTROLS           ║                    ║               ", ));
         screen.push(format!("     ────────╴          ║                    ║               ", ));
