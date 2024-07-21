@@ -6,9 +6,9 @@ use std::{
 };
 
 use crossterm::{
-    cursor,
+    cursor::{self, MoveTo, MoveToNextLine},
     event::KeyCode,
-    style::{self, Color, Stylize},
+    style::{self, Color, Stylize, Print, PrintStyledContent},
     terminal, QueueableCommand,
 };
 use tetrs_lib::{
@@ -59,11 +59,11 @@ impl GameScreenRenderer for DebugRenderer {
             }
         }
         ctx.term
-            .queue(cursor::MoveTo(0, 0))?
+            .queue(MoveTo(0, 0))?
             .queue(terminal::Clear(terminal::ClearType::FromCursorDown))?;
         ctx.term
-            .queue(style::Print("   +--------------------+"))?
-            .queue(cursor::MoveToNextLine(1))?;
+            .queue(Print("   +--------------------+"))?
+            .queue(MoveToNextLine(1))?;
         for (idx, line) in temp_board.iter().take(20).enumerate().rev() {
             let txt_line = format!(
                 "{idx:02} |{}|",
@@ -84,18 +84,18 @@ impl GameScreenRenderer for DebugRenderer {
                     .join("")
             );
             ctx.term
-                .queue(style::Print(txt_line))?
-                .queue(cursor::MoveToNextLine(1))?;
+                .queue(Print(txt_line))?
+                .queue(MoveToNextLine(1))?;
         }
         ctx.term
-            .queue(style::Print("   +--------------------+"))?
-            .queue(cursor::MoveToNextLine(1))?;
+            .queue(Print("   +--------------------+"))?
+            .queue(MoveToNextLine(1))?;
         ctx.term
             .queue(style::Print(format!(
                 "   {:?}",
                 time_updated.saturating_duration_since(game.state().time_started)
             )))?
-            .queue(cursor::MoveToNextLine(1))?;
+            .queue(MoveToNextLine(1))?;
         // Draw feedback stuf
         for event in new_feedback_events {
             self.feedback_event_buffer.push_front(event);
@@ -148,18 +148,13 @@ impl GameScreenRenderer for DebugRenderer {
         }
         for str in feed_evt_msgs.iter().take(16) {
             ctx.term
-                .queue(style::Print(str))?
-                .queue(cursor::MoveToNextLine(1))?;
+                .queue(Print(str))?
+                .queue(MoveToNextLine(1))?;
         }
         // Execute draw.
         ctx.term.flush()?;
         Ok(())
     }
-}
-
-impl UnicodeRenderer {
-    const BOARD_X: usize = 25;
-    const BOARD_Y: usize = 0;
 }
 
 impl GameScreenRenderer for UnicodeRenderer {
@@ -171,6 +166,8 @@ impl GameScreenRenderer for UnicodeRenderer {
         game: &mut Game,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
     ) -> io::Result<()> {
+        let (console_width, console_height) = terminal::size()?;
+        let (w_x, w_y) = (console_width.saturating_sub(80) / 2, console_height.saturating_sub(24) / 2);
         let GameStateView {
             lines_cleared,
             level,
@@ -259,15 +256,11 @@ impl GameScreenRenderer for UnicodeRenderer {
             format!("{}l", pieces_played[usize::from(Tetromino::L)]),
             format!("{}j", pieces_played[usize::from(Tetromino::J)]),
         ].join("  ");
-        // Begin frame update.
-        ctx.term.queue(terminal::BeginSynchronizedUpdate)?;
-        // Clear screen.
-        ctx.term
-            .queue(cursor::MoveTo(0, 0))?;
         // Screen: draw.
         let mut screen = Vec::new();
         #[allow(clippy::useless_format)]
         {
+            screen.push(format!("                                                             ", ));
             screen.push(format!("                        ╓╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╥{:─^w$       }┐", "mode", w=mode_name_space));
             screen.push(format!("     ALL STATS          ║                    ║{: ^w$       }│", mode_name, w=mode_name_space));
             screen.push(format!("     ─────────╴         ║                    ╟{:─^w$       }┘", "", w=mode_name_space));
@@ -282,19 +275,23 @@ impl GameScreenRenderer for UnicodeRenderer {
             screen.push(format!("     ──────╴            ║                    ║              │", ));
             screen.push(format!("     {:<19             }║                    ║──────────────┘", piececnts_o));
             screen.push(format!("     {:<19             }║                    ║               ", piececnts_i_s_z));
-            screen.push(format!("     {:<19             }║                    ║                             ", piececnts_t_l_j));
-            screen.push(format!("                        ║                    ║                             ", ));
-            screen.push(format!("     CONTROLS           ║                    ║                             ", ));
-            screen.push(format!("     ────────╴          ║                    ║                             ", ));
-            screen.push(format!("     Pause   {:<11     }║                    ║                             ", key_icon_pause));
-            screen.push(format!("     Move    {:<11     }║                    ║                             ", key_icons_move));
-            screen.push(format!("     Rotate  {:<11     }║                    ║                             ", key_icons_rotate));
-            screen.push(format!("     Drop    {:<11     }╚════════════════════╝                             ", key_icons_drop));
+            screen.push(format!("     {:<19             }║                    ║               ", piececnts_t_l_j));
+            screen.push(format!("                        ║                    ║               ", ));
+            screen.push(format!("     CONTROLS           ║                    ║               ", ));
+            screen.push(format!("     ────────╴          ║                    ║               ", ));
+            screen.push(format!("     Pause   {:<11     }║                    ║               ", key_icon_pause));
+            screen.push(format!("     Move    {:<11     }║                    ║               ", key_icons_move));
+            screen.push(format!("     Rotate  {:<11     }║                    ║               ", key_icons_rotate));
+            screen.push(format!("     Drop    {:<11     }╚════════════════════╝               ", key_icons_drop));
+            screen.push(format!("                                                             ", ));
         }
-        for str in screen {
+        // Begin frame update.
+        ctx.term.queue(terminal::BeginSynchronizedUpdate)?
+            .queue(terminal::Clear(terminal::ClearType::All))?;
+        for (screen_y, str) in screen.iter().enumerate() {
             ctx.term
-                .queue(style::Print(str))?
-                .queue(cursor::MoveToNextLine(1))?;
+                .queue(cursor::MoveTo(w_x, w_y+ u16::try_from(screen_y).unwrap()))?
+                .queue(Print(str))?;
         }
         // Board: helpers.
         // TODO: Old tile colors.
@@ -318,12 +315,8 @@ impl GameScreenRenderer for UnicodeRenderer {
             7 => Color::Rgb { r:  0, g:101, b:189 },
             t => unimplemented!("formatting unknown tile id {t}"),
         };
-        fn draw_board_tile(ctx: &mut TerminalTetrs<impl Write>, tile: &str, (x,y): Coord, color: Color) -> io::Result<()> {
-            ctx.term
-                .queue(cursor::MoveTo(u16::try_from(UnicodeRenderer::BOARD_X + 2*x).unwrap(), u16::try_from(UnicodeRenderer::BOARD_Y + (Game::SKYLINE - y)).unwrap()))?
-                .queue(style::PrintStyledContent(tile.with(color)))?;
-            Ok(())
-        }
+        let (board_x, board_y) = (25, 1);
+        let move_to = |(x, y): Coord| MoveTo(w_x+ board_x + 2 * u16::try_from(x).unwrap(), w_y+ board_y + u16::try_from(Game::SKYLINE - y).unwrap());
         // Board: draw hard drop trail.
         for (event_time, pos, h, tile_type_id, relevant) in self.hard_drop_tiles.iter_mut() {
             // TODO: Hard drop animation polish.
@@ -340,14 +333,14 @@ impl GameScreenRenderer for UnicodeRenderer {
             };
             // SAFETY: Valid ASCII bytes.
             let tile = String::from_utf8(vec![char, char]).unwrap();
-            draw_board_tile(ctx, &tile, *pos, tile_color(*tile_type_id))?;
+            ctx.term.queue(move_to(*pos))?.queue(PrintStyledContent(tile.with(tile_color(*tile_type_id))))?;
         }
         self.hard_drop_tiles.retain(|elt| elt.4);
         // Board: draw fixed tiles.
         for (y, line) in board.iter().enumerate().take(21).rev() {
             for (x, cell) in line.iter().enumerate() {
                 if let Some(tile_type_id) = cell {
-                    draw_board_tile(ctx, "██", (x,y), tile_color(*tile_type_id))?;
+                    ctx.term.queue(move_to((x,y)))?.queue(PrintStyledContent("██".with(tile_color(*tile_type_id))))?;
                 }
             }
         }
@@ -356,26 +349,29 @@ impl GameScreenRenderer for UnicodeRenderer {
             // Draw ghost piece.
             for (pos, tile_type_id) in active_piece.well_piece(board).tiles() {
                 if pos.1 <= Game::SKYLINE {
-                    draw_board_tile(ctx, "░░", pos, tile_color(tile_type_id))?;
+                    ctx.term.queue(move_to(pos))?.queue(PrintStyledContent("░░".with(tile_color(tile_type_id))))?;
                 }
             }
             // Draw active piece.
             for (pos, tile_type_id) in active_piece.tiles() {
                 if pos.1 <= Game::SKYLINE {
-                    draw_board_tile(ctx, "▓▓", pos, tile_color(tile_type_id))?;
+                    ctx.term.queue(move_to(pos))?.queue(PrintStyledContent("▓▓".with(tile_color(tile_type_id))))?;
                 }
             }
         }
         // Draw preview.
-        let (preview_x, preview_y) = (49, 11);
-        // TODO: SAFETY.
-        let next_piece = next_pieces.front().unwrap();
-        let color = tile_color(next_piece.tiletypeid());
-        for (x, y) in next_piece.minos(tetrs_lib::Orientation::N) {
-            // SAFETY: We will not exceed the bounds by drawing pieces.
-            ctx.term
-                .queue(cursor::MoveTo(u16::try_from(preview_x + 2*x).unwrap(), u16::try_from(preview_y - y).unwrap()))?
-                .queue(style::PrintStyledContent("▒▒".with(color)))?;
+        // TODO: Larger preview.
+        if game.config().preview_count > 0 {
+            let (preview_x, preview_y) = (49, 12);
+            // SAFETY: `preview_count > 0`.
+            let next_piece = next_pieces.front().unwrap();
+            let color = tile_color(next_piece.tiletypeid());
+            for (x, y) in next_piece.minos(tetrs_lib::Orientation::N) {
+                // SAFETY: We will not exceed the bounds by drawing pieces.
+                ctx.term
+                    .queue(MoveTo(w_x + preview_x + u16::try_from(2*x).unwrap(), w_y + preview_y - u16::try_from(y).unwrap()))?
+                    .queue(PrintStyledContent("▒▒".with(color)))?;
+            }
         }
         // Update stored events.
         self.events.extend(new_feedback_events.into_iter().map(|(time,event)| (time,event,true)));
@@ -383,7 +379,7 @@ impl GameScreenRenderer for UnicodeRenderer {
         for (event_time, event, relevant) in self.events.iter_mut().rev() {
             match event {
                 FeedbackEvent::PieceLocked(piece) => {
-                    // TODO: Locking animation polish.
+                    // TODO: Polish locking animation?
                     let elapsed = time_updated.saturating_duration_since(*event_time);
                     let Some(tile) = [(50,"██"), (75,"▓▓"), (100,"▒▒"), (125,"░░"), (150,"▒▒"), (175,"▓▓")]
                         .iter().find_map(|(ms, tile)| (elapsed < Duration::from_millis(*ms)).then_some(tile))
@@ -393,12 +389,12 @@ impl GameScreenRenderer for UnicodeRenderer {
                     };
                     for (pos, _tile_type_id) in piece.tiles() {
                         if pos.1 <= Game::SKYLINE {
-                            draw_board_tile(ctx, tile, pos, Color::White)?;
+                            ctx.term.queue(move_to(pos))?.queue(PrintStyledContent(tile.with(Color::White)))?;
                         }
                     }
                 }
                 FeedbackEvent::LineClears(lines_cleared, line_clear_delay) => {
-                    // TODO: Locking animation polish.
+                    // TODO: Polish line clear animation?
                     if line_clear_delay.is_zero() {
                         *relevant = false;
                     }
@@ -422,8 +418,8 @@ impl GameScreenRenderer for UnicodeRenderer {
                     };
                     for line_y in lines_cleared {
                         ctx.term
-                            .queue(cursor::MoveTo(u16::try_from(UnicodeRenderer::BOARD_X).unwrap(), u16::try_from(UnicodeRenderer::BOARD_Y + (Game::SKYLINE - *line_y)).unwrap()))?
-                            .queue(style::PrintStyledContent(line_clear_frames[idx].with(Color::White)))?;
+                            .queue(MoveTo(w_x+ board_x, w_y+ board_y + u16::try_from(Game::SKYLINE - *line_y).unwrap()))?
+                            .queue(PrintStyledContent(line_clear_frames[idx].with(Color::White)))?;
                     }
                 }
                 FeedbackEvent::HardDrop(_top_piece, bottom_piece) => {
@@ -475,9 +471,9 @@ impl GameScreenRenderer for UnicodeRenderer {
                 // TODO: Proper Debug?...
                 FeedbackEvent::Debug(msg) => {
                     ctx.term
-                        .queue(cursor::MoveTo(0, 25))?
-                        .queue(style::Print(msg))?;
-                    if time_updated.saturating_duration_since(*event_time) > Duration::from_secs(4) {
+                        .queue(MoveTo(w_x+ 0, w_y+ 24))?
+                        .queue(Print(msg))?;
+                    if time_updated.saturating_duration_since(*event_time) > Duration::from_secs(20) {
                         *relevant = false;
                     }
                 }
@@ -488,8 +484,8 @@ impl GameScreenRenderer for UnicodeRenderer {
         let (accolade_x, accolade_y) = (48, 15);
         for (dy, (_event_time, accolade)) in self.accolades.iter().enumerate() {
             ctx.term
-                .queue(cursor::MoveTo(accolade_x, accolade_y + u16::try_from(dy).expect("too many accolades")))?
-                .queue(style::Print(accolade))?;
+                .queue(MoveTo(w_x+ accolade_x, w_y+ accolade_y + u16::try_from(dy).expect("too many accolades")))?
+                .queue(Print(accolade))?;
         }
         self.accolades.retain(|(event_time, _accolade)| time_updated.saturating_duration_since(*event_time) < Duration::from_millis(6000));
         // Execute draw.

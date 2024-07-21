@@ -562,7 +562,11 @@ impl Game {
         }
     }
 
-    pub fn config(&mut self) -> &mut GameConfig {
+    pub fn config(&self) -> &GameConfig {
+        &self.config
+    }
+
+    pub fn config_mut(&mut self) -> &mut GameConfig {
         &mut self.config
     }
 

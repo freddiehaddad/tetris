@@ -16,7 +16,7 @@ use tetrs_lib::{Button, ButtonsPressed, Game, Gamemode, MeasureStat};
 use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
 use crate::input_handler::{ButtonSignal, CT_Keycode, CrosstermHandler};
 
-// TODO: #[derive(Debug)]
+#[derive(Debug)]
 enum Menu {
     Title,
     NewGame(Gamemode),
@@ -266,8 +266,6 @@ impl<T: Write> TerminalTetrs<T> {
         let _input_handler =
             CrosstermHandler::new(&tx, &self.settings.keybinds, self.settings.kitty_enabled);
         // Game Loop
-        // Clear Screen.
-        self.term.queue(terminal::Clear(terminal::ClearType::All))?;
         let time_game_resumed = Instant::now();
         *total_duration_paused += time_game_resumed.saturating_duration_since(*time_paused);
         let mut f = 0u32;
