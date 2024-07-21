@@ -852,7 +852,7 @@ impl Game {
                 if prev_piece
                     .tiles()
                     .iter()
-                    .any(|((_, y), _)| *y >= Self::SKYLINE)
+                    .all(|((_, y), _)| *y >= Self::SKYLINE)
                 {
                     return Err(GameOver::LockOut);
                 }
