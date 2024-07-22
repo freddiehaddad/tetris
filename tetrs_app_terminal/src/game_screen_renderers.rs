@@ -15,13 +15,14 @@ use tetrs_lib::{
     Button, Coord, FeedbackEvent, Game, GameConfig, GameState, MeasureStat, Tetromino, TileTypeID,
 };
 
-use crate::terminal_tetrs::TerminalTetrs;
+use crate::terminal_tetrs::{format_duration, ActionStats, TerminalTetrs};
 
 pub trait GameScreenRenderer {
     fn render<T>(
         &mut self,
         ctx: &mut TerminalTetrs<T>,
         game: &mut Game,
+        action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
     ) -> io::Result<()>
     where
@@ -45,6 +46,7 @@ impl GameScreenRenderer for DebugRenderer {
         &mut self,
         ctx: &mut TerminalTetrs<T>,
         game: &mut Game,
+        _action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
     ) -> io::Result<()>
     where
@@ -164,6 +166,7 @@ impl GameScreenRenderer for UnicodeRenderer {
         &mut self,
         ctx: &mut TerminalTetrs<T>,
         game: &mut Game,
+        action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
     ) -> io::Result<()>
     where
@@ -198,14 +201,6 @@ impl GameScreenRenderer for UnicodeRenderer {
             MeasureStat::Pieces(_) => "Pieces",
             MeasureStat::Time(_) => "Time",
         };
-        let fmt_time = |dur: Duration| {
-            format!(
-                "{}:{:02}.{:02}",
-                dur.as_secs() / 60,
-                dur.as_secs() % 60,
-                dur.as_millis() % 1000 / 10
-            )
-        };
         let fmt_key = |key: KeyCode| {
             format!(
                 "[{}]",
@@ -238,7 +233,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             MeasureStat::Level(_) => format!("{}", level),
             MeasureStat::Score(_) => format!("{}", score),
             MeasureStat::Pieces(_) => format!("{}", pieces_played.iter().sum::<u32>()),
-            MeasureStat::Time(_) => fmt_time(time_elapsed),
+            MeasureStat::Time(_) => format_duration(time_elapsed),
         };
         let (goal_name, goal_value) = if let Some(stat) = gamemode.limit {
             (
@@ -250,7 +245,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                     MeasureStat::Pieces(pcs) => {
                         format!("{}", pcs.saturating_sub(pieces_played.iter().sum::<u32>()))
                     }
-                    MeasureStat::Time(dur) => fmt_time(dur.saturating_sub(time_elapsed)),
+                    MeasureStat::Time(dur) => format_duration(dur.saturating_sub(time_elapsed)),
                 },
             )
         } else {
@@ -302,17 +297,17 @@ impl GameScreenRenderer for UnicodeRenderer {
             .collect::<Vec<String>>()
             .join(" ");
         let key_icons_drop = format!("{key_icons_dropsoft} {key_icons_drophard}");
-        let piececnts_o = format!("{}o", pieces_played[usize::from(Tetromino::O)]);
+        let piececnts_o = format!("{}o", pieces_played[Tetromino::O]);
         let piececnts_i_s_z = [
-            format!("{}i", pieces_played[usize::from(Tetromino::I)]),
-            format!("{}s", pieces_played[usize::from(Tetromino::S)]),
-            format!("{}z", pieces_played[usize::from(Tetromino::Z)]),
+            format!("{}i", pieces_played[Tetromino::I]),
+            format!("{}s", pieces_played[Tetromino::S]),
+            format!("{}z", pieces_played[Tetromino::Z]),
         ]
         .join("  ");
         let piececnts_t_l_j = [
-            format!("{}t", pieces_played[usize::from(Tetromino::T)]),
-            format!("{}l", pieces_played[usize::from(Tetromino::L)]),
-            format!("{}j", pieces_played[usize::from(Tetromino::J)]),
+            format!("{}t", pieces_played[Tetromino::T]),
+            format!("{}l", pieces_played[Tetromino::L]),
+            format!("{}j", pieces_played[Tetromino::J]),
         ]
         .join("  ");
         // Screen: draw.
@@ -328,7 +323,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             format!("     Lines:{:>7  }      ║                    ║               ", lines),
             format!("                        ║                    ║  {           }", goal_name),
             format!("     Time elapsed       ║                    ║{:^15         }", goal_value),
-            format!("     {:>13       }      ║                    ║               ", fmt_time(time_elapsed)),
+            format!("     {:>13       }      ║                    ║               ", format_duration(time_elapsed)),
             format!("                        ║                    ║─────next─────┐", ),
             format!("     PIECES             ║                    ║              │", ),
             format!("     ──────╴            ║                    ║              │", ),
@@ -582,6 +577,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                     }
                     if *spin {
                         strs.push(format!("{shape:?}-Spin"));
+                        action_stats[0] += 1;
                     }
                     let clear_action = match lineclears {
                         1 => "Single",
@@ -591,6 +587,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                         x => unreachable!("unexpected line clear count {x}"),
                     }
                     .to_ascii_uppercase();
+                    action_stats[usize::try_from(*lineclears).unwrap()] += 1;
                     let excl = match opportunity {
                         1 => "'",
                         2 => "!",

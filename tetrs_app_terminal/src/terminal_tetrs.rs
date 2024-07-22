@@ -13,13 +13,16 @@ use crossterm::{
         KeyEventKind::{Press, Repeat},
         KeyModifiers,
     },
-    style::{self, Print},
+    style::{self, Print, PrintStyledContent, Stylize},
     terminal, ExecutableCommand, QueueableCommand,
 };
 use tetrs_lib::{Button, ButtonsPressed, Game, GameState, Gamemode, MeasureStat};
 
 use crate::game_input_handler::{ButtonSignal, CT_Keycode, CrosstermHandler};
 use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
+
+// TODO: This should be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
+pub type ActionStats = [u32; 5];
 
 #[derive(Debug)]
 enum Menu {
@@ -30,9 +33,10 @@ enum Menu {
         game_screen_renderer: UnicodeRenderer,
         total_duration_paused: Duration,
         last_paused: Instant,
+        action_stats: ActionStats,
     },
-    GameOver(Box<GameState>),
-    GameComplete(Box<GameState>),
+    GameOver(String, Box<GameState>, ActionStats),
+    GameComplete(String, Box<GameState>, ActionStats),
     Pause, // TODO: Add information so game stats can be displayed here.
     Options,
     ConfigureControls,
@@ -62,8 +66,8 @@ impl std::fmt::Display for Menu {
             Menu::Title => "Title Screen",
             Menu::NewGame => "New Game",
             Menu::Game { game, .. } => &format!("Game: {}", game.config().gamemode.name),
-            Menu::GameOver(_) => "Game Over",
-            Menu::GameComplete(_) => "Game Completed",
+            Menu::GameOver(..) => "Game Over",
+            Menu::GameComplete(..) => "Game Completed",
             Menu::Pause => "Pause",
             Menu::Options => "Options",
             Menu::ConfigureControls => "Configure Controls",
@@ -191,10 +195,11 @@ impl<T: Write> TerminalTetrs<T> {
                     game_screen_renderer: renderer,
                     total_duration_paused,
                     last_paused,
-                } => self.game(game, renderer, total_duration_paused, last_paused),
+                    action_stats,
+                } => self.game(game, renderer, total_duration_paused, last_paused, action_stats),
                 Menu::Pause => self.pause(),
-                Menu::GameOver(gamestate) => self.gameover(gamestate),
-                Menu::GameComplete(gamestate) => self.gamecomplete(gamestate),
+                Menu::GameOver(mode_name, gamestate, action_stats) => self.gameover(mode_name, gamestate, action_stats),
+                Menu::GameComplete(mode_name, gamestate, action_stats) => self.gamecomplete(mode_name, gamestate, action_stats),
                 Menu::Scores => self.scores(),
                 Menu::About => self.about(),
                 Menu::Options => self.options(),
@@ -209,7 +214,7 @@ impl<T: Write> TerminalTetrs<T> {
                 MenuUpdate::Push(menu) => {
                     if matches!(
                         menu,
-                        Menu::Title | Menu::Game { .. } | Menu::GameOver(_) | Menu::GameComplete(_)
+                        Menu::Title | Menu::Game { .. } | Menu::GameOver(..) | Menu::GameComplete(..)
                     ) {
                         menu_stack.clear();
                     }
@@ -239,7 +244,7 @@ impl<T: Write> TerminalTetrs<T> {
         loop {
             let w_main = Self::W_MAIN.into();
             let (x_main, y_main) = Self::fetch_main_xy();
-            let y_selection = Self::H_MAIN / 3;
+            let y_selection = Self::H_MAIN / 5;
             if current_menu_name.is_empty() {
                 self.term
                     .queue(terminal::Clear(terminal::ClearType::All))?
@@ -262,7 +267,8 @@ impl<T: Write> TerminalTetrs<T> {
                 .iter()
                 .map(|menu| menu.to_string())
                 .collect::<Vec<_>>();
-            if names.is_empty() {
+            let n_names = names.len();
+            if n_names == 0 {
                 self.term
                     .queue(MoveTo(x_main, y_main + y_selection + 5))?
                     .queue(Print(format!(
@@ -285,6 +291,12 @@ impl<T: Write> TerminalTetrs<T> {
                             }
                         )))?;
                 }
+                self.term
+                    .queue(MoveTo(x_main, y_main + y_selection + 4 + u16::try_from(n_names).unwrap() + 3))?
+                    .queue(PrintStyledContent(format!(
+                        "{:^w_main$}",
+                        "Use [←] [→] [↑] [↓] [Esc] [Enter].",
+                    ).italic()))?;
             }
             self.term.flush()?;
             // Wait for new input.
@@ -390,7 +402,7 @@ impl<T: Write> TerminalTetrs<T> {
             // First part: rendering the menu.
             let w_main = Self::W_MAIN.into();
             let (x_main, y_main) = Self::fetch_main_xy();
-            let y_selection = Self::H_MAIN / 3;
+            let y_selection = Self::H_MAIN / 5;
             // Render menu title.
             self.term
                 .queue(terminal::Clear(terminal::ClearType::All))?
@@ -429,9 +441,9 @@ impl<T: Write> TerminalTetrs<T> {
                     "{:^w_main$}",
                     if selected == selected_cnt - 1 {
                         if selected_custom == 0 {
-                            ">▓▓> Custom Mode (*cycle 'limit' by hitting right more):"
+                            "▓▓> Custom Mode: (*change 'limit' by pressing right repeatedly)"
                         } else {
-                            ">  > Custom Mode (*cycle 'limit' by hitting right more):"
+                            "  > Custom Mode: (*change 'limit' by pressing right repeatedly)"
                         }
                     } else {
                         "Custom Mode..."
@@ -506,6 +518,7 @@ impl<T: Write> TerminalTetrs<T> {
                         game_screen_renderer: UnicodeRenderer::default(),
                         total_duration_paused: Duration::ZERO,
                         last_paused: now,
+                        action_stats: ActionStats::default(),
                     }));
                 }
                 // Move selector up or increase stat.
@@ -647,6 +660,7 @@ impl<T: Write> TerminalTetrs<T> {
         game_screen_renderer: &mut impl GameScreenRenderer,
         total_duration_paused: &mut Duration,
         time_paused: &mut Instant,
+        action_stats: &mut ActionStats,
     ) -> io::Result<MenuUpdate> {
         /* TODO: Game menu.
         Game
@@ -671,7 +685,7 @@ impl<T: Write> TerminalTetrs<T> {
                     Menu::GameComplete
                 } else {
                     Menu::GameOver
-                }(Box::new(game.state().clone()));
+                }(game.config().gamemode.name.clone(), Box::new(game.state().clone()), action_stats.clone());
                 // TODO: Temporary writing current game to file.
                 let mut file = std::fs::File::create("./tetrs_last_game.txt")?;
                 let _ = file.write(format!("{game:#?}").as_bytes());
@@ -713,13 +727,161 @@ impl<T: Write> TerminalTetrs<T> {
                 };
             }
             // TODO: Make this more elegantly modular.
-            game_screen_renderer.render(self, game, new_feedback_events)?;
+            game_screen_renderer.render(self, game, action_stats, new_feedback_events)?;
         };
         *time_paused = Instant::now();
         Ok(next_menu)
     }
 
-    fn gameover(&mut self, gamestate: &GameState) -> io::Result<MenuUpdate> {
+    fn generic_game_finished(
+        &mut self,
+        selection: Vec<Menu>,
+        mode_name: &str,
+        stats: &GameState,
+        action_stats: &ActionStats,
+        success: bool,
+    ) -> io::Result<MenuUpdate> {
+        let GameState {
+            time_started,
+            last_updated,
+            finished: _,
+            events: _,
+            buttons_pressed: _,
+            board: _,
+            active_piece_data: _,
+            next_pieces: _,
+            pieces_played,
+            lines_cleared,
+            level,
+            score,
+            consecutive_line_clears: _,
+            back_to_back_special_clears: _,
+        } = stats;
+        let time_elapsed = last_updated.saturating_duration_since(*time_started);
+        // TODO: Unused.
+        // let pieces_played_str = [
+        //     format!("{}o", pieces_played[Tetromino::O]),
+        //     format!("{}i", pieces_played[Tetromino::I]),
+        //     format!("{}s", pieces_played[Tetromino::S]),
+        //     format!("{}z", pieces_played[Tetromino::Z]),
+        //     format!("{}t", pieces_played[Tetromino::T]),
+        //     format!("{}l", pieces_played[Tetromino::L]),
+        //     format!("{}j", pieces_played[Tetromino::J]),
+        // ].join(" ");
+        let action_stats_str = [
+            format!("{} Single{}", action_stats[1], if action_stats[1] != 1 { "s" } else { "" }),
+            format!("{} Double{}", action_stats[2], if action_stats[2] != 1 { "s" } else { "" }),
+            format!("{} Triple{}", action_stats[3], if action_stats[3] != 1 { "s" } else { "" }),
+            format!("{} Quadruple{}", action_stats[4], if action_stats[4] != 1 { "s" } else { "" }),
+            format!("{} Spin{}", action_stats[0], if action_stats[0] != 1 { "s" } else { "" }),
+        ].join(", ");
+        let mut selected = 0usize;
+        loop {
+            let w_main = Self::W_MAIN.into();
+            let (x_main, y_main) = Self::fetch_main_xy();
+            let y_selection = Self::H_MAIN / 5;
+            self.term
+                .queue(terminal::Clear(terminal::ClearType::All))?
+                .queue(MoveTo(x_main, y_main + y_selection))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    format!("Game {}!{}", if success { "Completed" } else { "Over" }, if success { format!(" - {}", mode_name.to_ascii_uppercase()) } else { "".to_string() })
+                )))?
+                .queue(MoveTo(x_main, y_main + y_selection + 2))?
+                .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?
+                .queue(MoveTo(x_main, y_main + y_selection + 4))?
+                .queue(Print(format!("{:^w_main$}", format!("Score: {score}"))))?
+                .queue(MoveTo(x_main, y_main + y_selection + 5))?
+                .queue(Print(format!("{:^w_main$}", format!("Level: {level}", ))))?
+                .queue(MoveTo(x_main, y_main + y_selection + 6))?
+                .queue(Print(format!("{:^w_main$}", format!("Lines: {}", lines_cleared.len()))))?
+                .queue(MoveTo(x_main, y_main + y_selection + 7))?
+                .queue(Print(format!("{:^w_main$}", format!("Tetrominos: {}", pieces_played.iter().sum::<u32>()))))?
+                .queue(MoveTo(x_main, y_main + y_selection + 8))?
+                .queue(Print(format!("{:^w_main$}", format!("Time: {}", format_duration(time_elapsed)))))?
+                .queue(MoveTo(x_main, y_main + y_selection + 10))?
+                .queue(Print(format!("{:^w_main$}", action_stats_str)))?
+                .queue(MoveTo(x_main, y_main + y_selection + 12))?
+                .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
+            let names = selection
+                .iter()
+                .map(|menu| menu.to_string())
+                .collect::<Vec<_>>();
+            for (i, name) in names.into_iter().enumerate() {
+                self.term
+                    .queue(MoveTo(
+                        x_main,
+                        y_main + y_selection + 14 + u16::try_from(i).unwrap(),
+                    ))?
+                    .queue(Print(format!(
+                        "{:^w_main$}",
+                        if i == selected {
+                            format!(">>> {name} <<<")
+                        } else {
+                            name
+                        }
+                    )))?;
+            }
+            self.term.flush()?;
+            // Wait for new input.
+            match event::read()? {
+                // Quit menu.
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                    kind: Press | Repeat,
+                    state: _,
+                }) => {
+                    break Ok(MenuUpdate::Push(Menu::Quit(
+                        "exited with ctrl-c".to_string(),
+                    )))
+                }
+                Event::Key(KeyEvent {
+                    code: CT_Keycode::Esc,
+                    kind: Press,
+                    ..
+                }) => break Ok(MenuUpdate::Pop),
+                // Select next menu.
+                Event::Key(KeyEvent {
+                    code: CT_Keycode::Enter,
+                    kind: Press,
+                    ..
+                }) => {
+                    if !selection.is_empty() {
+                        let menu = selection.into_iter().nth(selected).unwrap();
+                        break Ok(MenuUpdate::Push(menu));
+                    }
+                }
+                // Move selector up.
+                Event::Key(KeyEvent {
+                    code: CT_Keycode::Up,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    if !selection.is_empty() {
+                        selected += selection.len() - 1;
+                    }
+                }
+                // Move selector down.
+                Event::Key(KeyEvent {
+                    code: CT_Keycode::Down,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    if !selection.is_empty() {
+                        selected += 1;
+                    }
+                }
+                // Other event: don't care.
+                _ => {}
+            }
+            if !selection.is_empty() {
+                selected = selected.rem_euclid(selection.len());
+            }
+        }
+    }
+
+    fn gameover(&mut self, mode_name: &str, gamestate: &GameState, action_stats: &ActionStats) -> io::Result<MenuUpdate> {
         /* TODO: Gameover menu.
         GameOver
             -> { Quit }
@@ -732,10 +894,10 @@ impl<T: Write> TerminalTetrs<T> {
             Menu::Scores,
             Menu::Quit("quit after game over".to_string()),
         ];
-        self.generic_placeholder_widget("Game Over", selection)
+        self.generic_game_finished(selection, mode_name, gamestate, action_stats, false)
     }
 
-    fn gamecomplete(&mut self, gamestate: &GameState) -> io::Result<MenuUpdate> {
+    fn gamecomplete(&mut self, mode_name: &str, gamestate: &GameState, action_stats: &ActionStats) -> io::Result<MenuUpdate> {
         /* TODO: Gamecomplete menu.
         GameComplete
             -> { Quit }
@@ -748,7 +910,7 @@ impl<T: Write> TerminalTetrs<T> {
             Menu::Scores,
             Menu::Quit("quit after game complete".to_string()),
         ];
-        self.generic_placeholder_widget("Game Completed", selection)
+        self.generic_game_finished(selection, mode_name, gamestate, action_stats, true)
     }
 
     fn pause(&mut self) -> io::Result<MenuUpdate> {
@@ -779,7 +941,7 @@ impl<T: Write> TerminalTetrs<T> {
 
         MenuUpdate::Pop
         */
-        self.generic_placeholder_widget("Settings", vec![Menu::ConfigureControls])
+        self.generic_placeholder_widget("Options", vec![Menu::ConfigureControls])
     }
 
     fn configurecontrols(&mut self) -> io::Result<MenuUpdate> {
@@ -805,4 +967,13 @@ impl<T: Write> TerminalTetrs<T> {
         */
         self.generic_placeholder_widget("About Tetrs", vec![])
     }
+}
+
+pub fn format_duration(dur: Duration) -> String {
+    format!(
+        "{}:{:02}.{:02}",
+        dur.as_secs() / 60,
+        dur.as_secs() % 60,
+        dur.as_millis() % 1000 / 10
+    )
 }

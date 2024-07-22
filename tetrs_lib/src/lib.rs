@@ -260,17 +260,32 @@ impl TryFrom<usize> for Tetromino {
     }
 }
 
-impl From<Tetromino> for usize {
-    fn from(value: Tetromino) -> Self {
-        use Tetromino::*;
-        match value {
-            O => 0,
-            I => 1,
-            S => 2,
-            Z => 3,
-            T => 4,
-            L => 5,
-            J => 6,
+impl<T> ops::Index<Tetromino> for [T; 7] {
+    type Output = T;
+
+    fn index(&self, idx: Tetromino) -> &Self::Output {
+        match idx {
+            Tetromino::I => &self[0],
+            Tetromino::O => &self[1],
+            Tetromino::S => &self[2],
+            Tetromino::Z => &self[3],
+            Tetromino::T => &self[4],
+            Tetromino::L => &self[5],
+            Tetromino::J => &self[6],
+        }
+    }
+}
+
+impl<T> ops::IndexMut<Tetromino> for [T; 7] {
+    fn index_mut(&mut self, idx: Tetromino) -> &mut Self::Output {
+        match idx {
+            Tetromino::I => &mut self[0],
+            Tetromino::O => &mut self[1],
+            Tetromino::S => &mut self[2],
+            Tetromino::Z => &mut self[3],
+            Tetromino::T => &mut self[4],
+            Tetromino::L => &mut self[5],
+            Tetromino::J => &mut self[6],
         }
     }
 }
@@ -742,7 +757,7 @@ impl Game {
                 if !next_piece.fits(&self.state.board) {
                     return Err(GameOver::BlockOut);
                 }
-                self.state.pieces_played[<usize>::from(tetromino)] += 1;
+                self.state.pieces_played[tetromino] += 1;
                 self.state.events.insert(Event::Fall, event_time);
                 if self.state.buttons_pressed[Button::MoveLeft]
                     || self.state.buttons_pressed[Button::MoveRight]
