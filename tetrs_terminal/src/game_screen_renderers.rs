@@ -2,7 +2,7 @@ use std::{
     collections::{BinaryHeap, VecDeque},
     fmt::Debug,
     io::{self, Write},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crossterm::{
@@ -12,7 +12,7 @@ use crossterm::{
     terminal, QueueableCommand,
 };
 use tetrs_engine::{
-    Button, Coord, FeedbackEvent, Game, GameConfig, GameState, Orientation, Stat, Tetromino,
+    Button, Coord, FeedbackEvent, Game, GameTime, GameConfig, GameState, Orientation, Stat, Tetromino,
     TileTypeID,
 };
 
@@ -24,7 +24,7 @@ pub trait GameScreenRenderer {
         app: &mut App<T>,
         game: &mut Game,
         action_stats: &mut ActionStats,
-        new_feedback_events: Vec<(Instant, FeedbackEvent)>,
+        new_feedback_events: Vec<(GameTime, FeedbackEvent)>,
     ) -> io::Result<()>
     where
         T: Write;
@@ -32,14 +32,14 @@ pub trait GameScreenRenderer {
 
 #[derive(Clone, Default, Debug)]
 pub struct DebugRenderer {
-    feedback_event_buffer: VecDeque<(Instant, FeedbackEvent)>,
+    feedback_event_buffer: VecDeque<(GameTime, FeedbackEvent)>,
 }
 
 #[derive(Clone, Default, Debug)]
 pub struct UnicodeRenderer {
-    events: Vec<(Instant, FeedbackEvent, bool)>,
-    messages: BinaryHeap<(Instant, String)>,
-    hard_drop_tiles: Vec<(Instant, Coord, usize, TileTypeID, bool)>,
+    visual_events: Vec<(GameTime, FeedbackEvent, bool)>,
+    messages: BinaryHeap<(GameTime, String)>,
+    hard_drop_tiles: Vec<(GameTime, Coord, usize, TileTypeID, bool)>,
 }
 
 impl GameScreenRenderer for DebugRenderer {
@@ -48,14 +48,14 @@ impl GameScreenRenderer for DebugRenderer {
         app: &mut App<T>,
         game: &mut Game,
         _action_stats: &mut ActionStats,
-        new_feedback_events: Vec<(Instant, FeedbackEvent)>,
+        new_feedback_events: Vec<(GameTime, FeedbackEvent)>,
     ) -> io::Result<()>
     where
         T: Write,
     {
         // Draw game stuf
         let GameState {
-            last_updated,
+            game_time,
             board,
             active_piece_data,
             ..
@@ -99,12 +99,12 @@ impl GameScreenRenderer for DebugRenderer {
         app.term
             .queue(style::Print(format!(
                 "   {:?}",
-                last_updated.saturating_duration_since(game.state().time_started)
+                game_time
             )))?
             .queue(MoveToNextLine(1))?;
         // Draw feedback stuf
-        for event in new_feedback_events {
-            self.feedback_event_buffer.push_front(event);
+        for evt in new_feedback_events {
+            self.feedback_event_buffer.push_front(evt);
         }
         let mut feed_evt_msgs = Vec::new();
         for (_, feedback_event) in self.feedback_event_buffer.iter() {
@@ -168,15 +168,14 @@ impl GameScreenRenderer for UnicodeRenderer {
         app: &mut App<T>,
         game: &mut Game,
         action_stats: &mut ActionStats,
-        new_feedback_events: Vec<(Instant, FeedbackEvent)>,
+        new_feedback_events: Vec<(GameTime, FeedbackEvent)>,
     ) -> io::Result<()>
     where
         T: Write,
     {
         let (x_main, y_main) = App::<T>::fetch_main_xy();
         let GameState {
-            time_started,
-            last_updated,
+            game_time,
             finished: _,
             events: _,
             buttons_pressed: _,
@@ -193,7 +192,6 @@ impl GameScreenRenderer for UnicodeRenderer {
         let GameConfig { gamemode, .. } = game.config();
         // Screen: some values.
         let lines = lines_cleared.len();
-        let time_elapsed = last_updated.saturating_duration_since(*time_started);
         // Screen: some helpers.
         let stat_name = |stat| match stat {
             Stat::Lines(_) => "Lines",
@@ -211,7 +209,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             Stat::Level(_) => format!("{}", level),
             Stat::Score(_) => format!("{}", score),
             Stat::Pieces(_) => format!("{}", pieces_played.iter().sum::<u32>()),
-            Stat::Time(_) => format_duration(time_elapsed),
+            Stat::Time(_) => format_duration(*game_time),
         };
         let (goal_name, goal_value) = if let Some(stat) = gamemode.limit {
             (
@@ -223,7 +221,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                     Stat::Pieces(pcs) => {
                         format!("{}", pcs.saturating_sub(pieces_played.iter().sum::<u32>()))
                     }
-                    Stat::Time(dur) => format_duration(dur.saturating_sub(time_elapsed)),
+                    Stat::Time(dur) => format_duration(dur.saturating_sub(*game_time)),
                 },
             )
         } else {
@@ -284,7 +282,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             format!("     Lines:{:>7  }      ║                    ║               ", lines),
             format!("                        ║                    ║  {           }", goal_name),
             format!("     Time elapsed       ║                    ║{:^15         }", goal_value),
-            format!("     {:>13       }      ║                    ║               ", format_duration(time_elapsed)),
+            format!("     {:>13       }      ║                    ║               ", format_duration(*game_time)),
             format!("                        ║                    ║─────next─────┐", ),
             format!("     PIECES             ║                    ║              │", ),
             format!("     ──────╴            ║                    ║              │", ),
@@ -374,7 +372,7 @@ impl GameScreenRenderer for UnicodeRenderer {
         // Board: draw hard drop trail.
         for (event_time, pos, h, tile_type_id, relevant) in self.hard_drop_tiles.iter_mut() {
             // TODO: Hard drop animation polish.
-            let elapsed = last_updated.saturating_duration_since(*event_time);
+            let elapsed = game_time.saturating_sub(*event_time);
             let luminance_map = "@$#%*+~.".as_bytes();
             // TODO: Old hard drop animation timings.
             // let Some(&char) = [50, 60, 70, 80, 90, 110, 140, 180]
@@ -440,14 +438,13 @@ impl GameScreenRenderer for UnicodeRenderer {
             }
         }
         // Update stored events.
-        self.events.extend(
+        self.visual_events.extend(
             new_feedback_events
                 .into_iter()
                 .map(|(time, event)| (time, event, true)),
         );
         // Draw events.
-        for (event_time, event, relevant) in self.events.iter_mut().rev() {
-            let elapsed = last_updated.saturating_duration_since(*event_time);
+        for (event_time, event, relevant) in self.visual_events.iter_mut().rev() {
             match event {
                 FeedbackEvent::PieceLocked(piece) => {
                     // TODO: Polish locking animation?
@@ -460,7 +457,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                         (175, "▓▓"),
                     ]
                     .iter()
-                    .find_map(|(ms, tile)| (elapsed < Duration::from_millis(*ms)).then_some(tile)) else {
+                    .find_map(|(ms, tile)| (*event_time < Duration::from_millis(*ms)).then_some(tile)) else {
                         *relevant = false;
                         continue;
                     };
@@ -489,7 +486,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                         "        ████        ",
                         "         ██         ",
                     ];
-                    let percent = elapsed.as_secs_f64() / line_clear_delay.as_secs_f64();
+                    let percent = event_time.as_secs_f64() / line_clear_delay.as_secs_f64();
                     // SAFETY: `0.0 <= percent && percent <= 1.0`.
                     let idx = if percent < 1.0 {
                         unsafe { (10.0 * percent).to_int_unchecked::<usize>() }
@@ -571,7 +568,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                 }
             }
         }
-        self.events.retain(|elt| elt.2);
+        self.visual_events.retain(|elt| elt.2);
         // Draw messages.
         for (y, (_event_time, message)) in self.messages.iter().enumerate() {
             app.term
@@ -582,7 +579,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                 .queue(Print(message))?;
         }
         self.messages.retain(|(event_time, _message)| {
-            last_updated.saturating_duration_since(*event_time) < Duration::from_millis(6000)
+            game_time.saturating_sub(*event_time) < Duration::from_millis(6000)
         });
         // Execute draw.
         // TODO: Unnecessary move?

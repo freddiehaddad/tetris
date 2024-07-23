@@ -17,6 +17,7 @@ use crossterm::{
     style::{self, Print, PrintStyledContent, Stylize},
     terminal, ExecutableCommand, QueueableCommand,
 };
+// TODO: serde. use serde::{Serialize, Deserialize};
 use tetrs_engine::{Button, ButtonsPressed, Game, GameState, Gamemode, Stat};
 
 use crate::game_input_handler::{ButtonSignal, CrosstermHandler};
@@ -25,16 +26,26 @@ use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
 // NOTE: This could be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
 pub type ActionStats = ([u32; 5], Vec<u32>);
 
+/* TODO: serde.
+#[derive(Serialize, Deserialize)]
+pub struct GameFinishedStats {
+    actions: [u32; 5],
+    score_bonuses: Vec<u32>,
+    gamemode: Gamemode,
+    last_state: GameState,
+}*/
+
 #[derive(Debug)]
 enum Menu {
     Title,
     NewGame,
     Game {
         game: Box<Game>,
-        game_screen_renderer: UnicodeRenderer,
-        total_duration_paused: Duration,
+        time_started: Instant,
         last_paused: Instant,
+        total_duration_paused: Duration,
         action_stats: ActionStats,
+        game_screen_renderer: UnicodeRenderer,
     },
     GameOver(Gamemode, Box<GameState>, ActionStats),
     GameComplete(Gamemode, Box<GameState>, ActionStats),
@@ -103,6 +114,8 @@ impl<T: Write> Drop for App<T> {
 impl<T: Write> App<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
+    // TODO: serde. Then save stuff with this.
+    pub const SAVE_FILE: &'static str = "tetrs_terminal_scores.json";
 
     pub fn new(mut terminal: T, fps: u32) -> Self {
         // Console prologue: Initializion.
@@ -158,16 +171,18 @@ impl<T: Write> App<T> {
                 Menu::NewGame => self.newgame(),
                 Menu::Game {
                     game,
-                    game_screen_renderer: renderer,
+                    time_started,
                     total_duration_paused,
                     last_paused,
                     action_stats,
+                    game_screen_renderer,
                 } => self.game(
                     game,
-                    renderer,
-                    total_duration_paused,
+                    time_started,
                     last_paused,
+                    total_duration_paused,
                     action_stats,
+                    game_screen_renderer,
                 ),
                 Menu::Pause => self.pause(),
                 Menu::GameOver(gamemode, gamestate, action_stats) => {
@@ -499,11 +514,12 @@ impl<T: Write> App<T> {
                     };
                     let now = Instant::now();
                     break Ok(MenuUpdate::Push(Menu::Game {
-                        game: Box::new(Game::with_gamemode(mode, now)),
-                        game_screen_renderer: Default::default(),
-                        total_duration_paused: Duration::ZERO,
+                        game: Box::new(Game::with_gamemode(mode)),
+                        time_started: now,
                         last_paused: now,
+                        total_duration_paused: Duration::ZERO,
                         action_stats: ActionStats::default(),
+                        game_screen_renderer: Default::default(),
                     }));
                 }
                 // Move selector up or increase stat.
@@ -645,10 +661,11 @@ impl<T: Write> App<T> {
     fn game(
         &mut self,
         game: &mut Game,
-        game_screen_renderer: &mut impl GameScreenRenderer,
+        time_started: &mut Instant,
+        last_paused: &mut Instant,
         total_duration_paused: &mut Duration,
-        time_paused: &mut Instant,
         action_stats: &mut ActionStats,
+        game_screen_renderer: &mut impl GameScreenRenderer,
     ) -> io::Result<MenuUpdate> {
         /* TODO: Game menu.
         Game
@@ -663,8 +680,8 @@ impl<T: Write> App<T> {
         let _input_handler =
             CrosstermHandler::new(&tx, &self.settings.keybinds, self.settings.kitty_enabled);
         // Game Loop
-        let time_game_resumed = Instant::now();
-        *total_duration_paused += time_game_resumed.saturating_duration_since(*time_paused);
+        let session_resumed = Instant::now();
+        *total_duration_paused += session_resumed.saturating_duration_since(*last_paused);
         let mut f = 0u32;
         let next_menu = 'render_loop: loop {
             // Exit if game ended
@@ -686,7 +703,7 @@ impl<T: Write> App<T> {
             // Start next frame
             f += 1;
             let next_frame_at =
-                time_game_resumed + Duration::from_secs_f64(f64::from(f) / self.settings.game_fps);
+                session_resumed + Duration::from_secs_f64(f64::from(f) / self.settings.game_fps);
             let mut new_feedback_events = Vec::new();
             'idle_loop: loop {
                 let frame_idle_remaining = next_frame_at - Instant::now();
@@ -696,17 +713,19 @@ impl<T: Write> App<T> {
                     }
                     Ok(Some((instant, button, button_state))) => {
                         buttons_pressed[button] = button_state;
-                        let instant = std::cmp::max(
-                            instant - *total_duration_paused,
-                            game.state().last_updated,
+                        let game_time_userinput = instant.saturating_duration_since(*time_started) - *total_duration_paused;
+                        let game_now = std::cmp::max(
+                            game_time_userinput,
+                            game.state().game_time,
                         );
-                        if let Ok(evts) = game.update(Some(buttons_pressed), instant) {
+                        if let Ok(evts) = game.update(Some(buttons_pressed), game_now) {
                             new_feedback_events.extend(evts);
                         }
                         continue 'idle_loop;
                     }
                     Err(mpsc::RecvTimeoutError::Timeout) => {
-                        if let Ok(evts) = game.update(None, Instant::now() - *total_duration_paused)
+                        let game_time_now = Instant::now().saturating_duration_since(*time_started) - *total_duration_paused;
+                        if let Ok(evts) = game.update(None, game_time_now)
                         {
                             new_feedback_events.extend(evts);
                         }
@@ -721,7 +740,7 @@ impl<T: Write> App<T> {
             // TODO: Make this more elegantly modular.
             game_screen_renderer.render(self, game, action_stats, new_feedback_events)?;
         };
-        *time_paused = Instant::now();
+        *last_paused = Instant::now();
         Ok(next_menu)
     }
 
@@ -734,8 +753,7 @@ impl<T: Write> App<T> {
         success: bool,
     ) -> io::Result<MenuUpdate> {
         let GameState {
-            time_started,
-            last_updated,
+            game_time,
             finished: _,
             events: _,
             buttons_pressed: _,
@@ -750,7 +768,6 @@ impl<T: Write> App<T> {
             back_to_back_special_clears: _,
         } = stats;
         let (actions, score_bonuses) = action_stats;
-        let time_elapsed = last_updated.saturating_duration_since(*time_started);
         // TODO: Unused.
         // let pieces_played_str = [
         //     format!("{}o", pieces_played[Tetromino::O]),
@@ -824,7 +841,7 @@ impl<T: Write> App<T> {
                 .queue(MoveTo(x_main, y_main + y_selection + 8))?
                 .queue(Print(format!(
                     "{:^w_main$}",
-                    format!("Time: {}", format_duration(time_elapsed))
+                    format!("Time: {}", format_duration(*game_time))
                 )))?
                 .queue(MoveTo(x_main, y_main + y_selection + 10))?
                 .queue(Print(format!("{:^w_main$}", action_stats_str)))?

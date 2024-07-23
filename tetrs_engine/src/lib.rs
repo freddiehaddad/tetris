@@ -6,7 +6,7 @@ use std::{
     fmt,
     num::NonZeroU32,
     ops,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 pub type ButtonsPressed = [bool; 7];
@@ -16,9 +16,11 @@ pub type Line = [Option<TileTypeID>; Game::WIDTH];
 pub type Board = Vec<Line>;
 pub type Coord = (usize, usize);
 pub type Offset = (isize, isize);
-type EventMap<T> = HashMap<Event, T>;
+pub type GameTime = Duration;
+type EventMap = HashMap<Event, GameTime>;
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Orientation {
     N,
     E,
@@ -27,6 +29,7 @@ pub enum Orientation {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Tetromino {
     O,
     I,
@@ -38,6 +41,7 @@ pub enum Tetromino {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActivePiece {
     pub shape: Tetromino,
     pub orientation: Orientation,
@@ -45,6 +49,7 @@ pub struct ActivePiece {
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Stat {
     Lines(usize),
     Level(NonZeroU32),
@@ -54,6 +59,7 @@ pub enum Stat {
 }
 
 #[derive(Eq, Clone, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gamemode {
     pub name: String,
     pub start_level: NonZeroU32,
@@ -63,6 +69,7 @@ pub struct Gamemode {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Button {
     MoveLeft,
     MoveRight,
@@ -74,15 +81,17 @@ pub enum Button {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LockingData {
     touches_ground: bool,
-    last_touchdown: Option<Instant>,
-    last_liftoff: Option<Instant>,
+    last_touchdown: Option<GameTime>,
+    last_liftoff: Option<GameTime>,
     ground_time_left: Duration,
     lowest_y: usize,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Event {
     LineClear,
     Spawn,
@@ -96,10 +105,17 @@ pub enum Event {
     Fall,
 }
 
+#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum GameOver {
+    LockOut,
+    BlockOut,
+}
+
+#[derive(Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameConfig {
     pub gamemode: Gamemode,
-    pub rotation_system: Box<dyn rotation_systems::RotationSystem>,
-    pub tetromino_generator: Box<dyn Iterator<Item = Tetromino>>,
     pub preview_count: usize,
     pub delayed_auto_shift: Duration,
     pub auto_repeat_rate: Duration,
@@ -111,14 +127,15 @@ pub struct GameConfig {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameState {
-    pub time_started: Instant,
-    pub last_updated: Instant,
+    pub game_time: GameTime,
     pub finished: Option<Result<(), GameOver>>,
     /// Invariants:
     /// * Until the game has finished there will always be more events: `finished.is_some() || !next_events.is_empty()`.
     /// * Unhandled events lie in the future: `for (event,event_time) in self.events { assert(self.time_updated < event_time); }`.
-    pub events: EventMap<Instant>,
+    pub events: EventMap,
     pub buttons_pressed: ButtonsPressed,
     pub board: Board,
     pub active_piece_data: Option<(ActivePiece, LockingData)>,
@@ -131,19 +148,15 @@ pub struct GameState {
     pub back_to_back_special_clears: u32, // TODO: Include this in score calculation and FeedbackEvent variant.
 }
 
-#[derive(Debug)]
 pub struct Game {
     state: GameState,
     config: GameConfig,
-}
-
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
-pub enum GameOver {
-    LockOut,
-    BlockOut,
+    rotation_system: Box<dyn rotation_systems::RotationSystem>,
+    tetromino_generator: Box<dyn Iterator<Item = Tetromino>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
+// TODO: serde #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FeedbackEvent {
     PieceLocked(ActivePiece),
     LineClears(Vec<usize>, Duration),
@@ -460,8 +473,6 @@ impl GameConfig {
     pub fn new(gamemode: Gamemode) -> Self {
         Self {
             gamemode,
-            rotation_system: Box::new(rotation_systems::Okay),
-            tetromino_generator: Box::new(tetromino_generators::RecencyProbGen::new()),
             preview_count: 1,
             delayed_auto_shift: Duration::from_millis(200),
             auto_repeat_rate: Duration::from_millis(50),
@@ -474,9 +485,11 @@ impl GameConfig {
     }
 }
 
-impl fmt::Debug for GameConfig {
+impl fmt::Debug for Game {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("GameConfig")
+        fmt.debug_struct("Game")
+            .field("config", &self.config)
+            .field("state", &self.state)
             .field(
                 "tetromino_generator",
                 &std::any::type_name_of_val(&self.tetromino_generator),
@@ -485,13 +498,6 @@ impl fmt::Debug for GameConfig {
                 "rotation_system",
                 &std::any::type_name_of_val(&self.rotation_system),
             )
-            .field("appearance_delay", &self.appearance_delay)
-            .field("delayed_auto_shift", &self.delayed_auto_shift)
-            .field("auto_repeat_rate", &self.auto_repeat_rate)
-            .field("soft_drop_factor", &self.soft_drop_factor)
-            .field("hard_drop_delay", &self.hard_drop_delay)
-            .field("ground_time_cap", &self.ground_time_max)
-            .field("line_clear_delay", &self.line_clear_delay)
             .finish()
     }
 }
@@ -503,24 +509,24 @@ impl Game {
                                    // SAFETY: 19 > 0, and this is the level at which blocks start falling with 20G.
     const LEVEL_20G: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(19) };
 
-    pub fn with_gamemode(gamemode: Gamemode, time_started: Instant) -> Self {
+    pub fn with_gamemode(gamemode: Gamemode) -> Self {
         let default_config = GameConfig::new(gamemode);
-        Self::with_config(default_config, time_started)
+        Self::with_config(default_config)
     }
 
-    pub fn with_config(mut config: GameConfig, time_started: Instant) -> Self {
+    pub fn with_config(config: GameConfig) -> Self {
+        let rotation_system = Box::new(rotation_systems::Okay);
+        let mut tetromino_generator = Box::new(tetromino_generators::RecencyProbGen::new());
         let state = GameState {
-            time_started,
-            last_updated: time_started,
+            game_time: Duration::ZERO,
             finished: None,
-            events: HashMap::from([(Event::Spawn, time_started)]),
+            events: HashMap::from([(Event::Spawn, Duration::ZERO)]),
             buttons_pressed: Default::default(),
             board: std::iter::repeat(Line::default())
                 .take(Self::HEIGHT)
                 .collect(),
             active_piece_data: None,
-            next_pieces: config
-                .tetromino_generator
+            next_pieces: tetromino_generator
                 .by_ref()
                 .take(config.preview_count)
                 .collect(),
@@ -531,7 +537,12 @@ impl Game {
             consecutive_line_clears: 0,
             back_to_back_special_clears: 0,
         };
-        Game { config, state }
+        Game {
+            config,
+            state,
+            rotation_system,
+            tetromino_generator,
+        }
     }
 
     pub fn finished(&self) -> Option<Result<(), GameOver>> {
@@ -553,14 +564,14 @@ impl Game {
     pub fn update(
         &mut self,
         mut new_button_state: Option<ButtonsPressed>,
-        update_time: Instant,
-    ) -> Result<Vec<(Instant, FeedbackEvent)>, bool> {
+        update_time: GameTime,
+    ) -> Result<Vec<(GameTime, FeedbackEvent)>, bool> {
         // NOTE: Returning an empty Vec is efficient because it won't even allocate (as by Rust API).
         let mut feedback_events = Vec::new();
         // Handle game over: return immediately.
         if self.state.finished.is_some() {
             return Err(true);
-        } else if update_time < self.state.last_updated {
+        } else if update_time < self.state.game_time {
             return Err(false);
         }
         // We linearly process all events until we reach the update time.
@@ -580,7 +591,7 @@ impl Game {
                 self.state.events.remove_entry(&event);
                 // Handle next in-game event.
                 let result = self.handle_event(event, event_time);
-                self.state.last_updated = event_time;
+                self.state.game_time = event_time;
                 match result {
                     Ok(new_feedback_events) => {
                         feedback_events.extend(new_feedback_events);
@@ -594,7 +605,7 @@ impl Game {
                                     pieces <= self.state.pieces_played.iter().sum()
                                 }
                                 Stat::Time(timer) => {
-                                    timer <= self.state.last_updated - self.state.time_started
+                                    timer <= self.state.game_time
                                 }
                             };
                             if goal_achieved {
@@ -613,7 +624,7 @@ impl Game {
             // Possibly process user input events now or break out.
             } else {
                 // NOTE: We should be able to update the time here because `self.process_input(...)` does not access it.
-                self.state.last_updated = update_time;
+                self.state.game_time = update_time;
                 // Update button inputs.
                 if let Some(buttons_pressed) = new_button_state.take() {
                     if self.state.active_piece_data.is_some() {
@@ -634,10 +645,10 @@ impl Game {
     }
 
     fn handle_input_events(
-        events: &mut HashMap<Event, Instant>,
+        events: &mut EventMap,
         prev_buttons_pressed: ButtonsPressed,
         next_buttons_pressed: ButtonsPressed,
-        update_time: Instant,
+        update_time: GameTime,
     ) {
         #[allow(non_snake_case)]
         let [mL0, mR0, rL0, rR0, rA0, dS0, dH0] = prev_buttons_pressed;
@@ -713,8 +724,8 @@ impl Game {
     fn handle_event(
         &mut self,
         event: Event,
-        event_time: Instant,
-    ) -> Result<Vec<(Instant, FeedbackEvent)>, GameOver> {
+        event_time: GameTime,
+    ) -> Result<Vec<(GameTime, FeedbackEvent)>, GameOver> {
         // Active piece touches the ground before update (or doesn't exist, counts as not touching).
         let mut feedback_events = Vec::new();
         let prev_piece_data = self.state.active_piece_data;
@@ -731,8 +742,7 @@ impl Game {
                     .preview_count
                     .saturating_sub(self.state.next_pieces.len());
                 self.state.next_pieces.extend(
-                    self.config
-                        .tetromino_generator
+                    self.tetromino_generator
                         .by_ref()
                         .take(n_required_pieces),
                 );
@@ -741,7 +751,7 @@ impl Game {
                     .next_pieces
                     .pop_front()
                     .expect("piece generator ran out before game finished");
-                let next_piece = self.config.rotation_system.place_initial(tetromino);
+                let next_piece = self.rotation_system.place_initial(tetromino);
                 // Newly spawned piece conflicts with board - Game over.
                 if !next_piece.fits(&self.state.board) {
                     return Err(GameOver::BlockOut);
@@ -771,8 +781,7 @@ impl Game {
                 if self.state.buttons_pressed[Button::RotateAround] {
                     rotation += 2;
                 }
-                self.config
-                    .rotation_system
+                self.rotation_system
                     .rotate(&prev_piece, &self.state.board, rotation)
                     .or(Some(prev_piece))
             }
@@ -969,7 +978,7 @@ impl Game {
     fn calculate_locking_data(
         &mut self,
         event: Event,
-        event_time: Instant,
+        event_time: GameTime,
         prev_piece_data: Option<(ActivePiece, LockingData)>,
         next_piece: ActivePiece,
         touches_ground: bool,
@@ -1028,7 +1037,7 @@ impl Game {
                                 // Piece was a afloat before with valid last touchdown as well.
                                 Some(last_touchdown) => {
                                     let (last_touchdown, ground_time_left) = if event_time
-                                        .saturating_duration_since(last_liftoff)
+                                        .saturating_sub(last_liftoff)
                                         <= 2 * self.drop_delay()
                                     {
                                         (
@@ -1037,7 +1046,7 @@ impl Game {
                                         )
                                     } else {
                                         let elapsed_ground_time =
-                                            last_liftoff.saturating_duration_since(last_touchdown);
+                                            last_liftoff.saturating_sub(last_touchdown);
                                         (
                                             Some(event_time),
                                             prev_locking_data
@@ -1082,7 +1091,7 @@ impl Game {
                 {
                     // SAFETY: We know this must be `Some` in this case.
                     let current_ground_time = event_time
-                        .saturating_duration_since(next_locking_data.last_touchdown.unwrap());
+                        .saturating_sub(next_locking_data.last_touchdown.unwrap());
                     let remaining_ground_time = next_locking_data
                         .ground_time_left
                         .saturating_sub(current_ground_time);
