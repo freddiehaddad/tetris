@@ -12,11 +12,11 @@ use crossterm::{
     terminal, QueueableCommand,
 };
 use tetrs_engine::{
-    Button, Coord, FeedbackEvent, Game, GameTime, GameConfig, GameState, Orientation, Stat, Tetromino,
-    TileTypeID,
+    Button, Coord, FeedbackEvent, Game, GameConfig, GameState, GameTime, Orientation, Stat,
+    Tetromino, TileTypeID,
 };
 
-use crate::terminal_tetrs::{format_duration, format_key, format_keybinds, GameRunningStats, App};
+use crate::terminal_tetrs::{format_duration, format_key, format_keybinds, App, GameRunningStats};
 
 pub trait GameScreenRenderer {
     fn render<T>(
@@ -97,10 +97,7 @@ impl GameScreenRenderer for DebugRenderer {
             .queue(Print("   +--------------------+"))?
             .queue(MoveToNextLine(1))?;
         app.term
-            .queue(style::Print(format!(
-                "   {:?}",
-                game_time
-            )))?
+            .queue(style::Print(format!("   {:?}", game_time)))?
             .queue(MoveToNextLine(1))?;
         // Draw feedback stuf
         for evt in new_feedback_events {

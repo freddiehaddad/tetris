@@ -51,11 +51,11 @@ pub struct ActivePiece {
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Stat {
+    Time(Duration),
+    Pieces(u32),
     Lines(usize),
     Level(NonZeroU32),
     Score(u32),
-    Pieces(u32),
-    Time(Duration),
 }
 
 #[derive(Eq, Clone, Debug)]
@@ -127,7 +127,6 @@ pub struct GameConfig {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameState {
     pub game_time: GameTime,
@@ -604,9 +603,7 @@ impl Game {
                                 Stat::Pieces(pieces) => {
                                     pieces <= self.state.pieces_played.iter().sum()
                                 }
-                                Stat::Time(timer) => {
-                                    timer <= self.state.game_time
-                                }
+                                Stat::Time(timer) => timer <= self.state.game_time,
                             };
                             if goal_achieved {
                                 // Game Completed.
@@ -741,11 +738,9 @@ impl Game {
                     .config
                     .preview_count
                     .saturating_sub(self.state.next_pieces.len());
-                self.state.next_pieces.extend(
-                    self.tetromino_generator
-                        .by_ref()
-                        .take(n_required_pieces),
-                );
+                self.state
+                    .next_pieces
+                    .extend(self.tetromino_generator.by_ref().take(n_required_pieces));
                 let tetromino = self
                     .state
                     .next_pieces
@@ -1090,8 +1085,8 @@ impl Game {
                     || (repositioned && move_rotate)
                 {
                     // SAFETY: We know this must be `Some` in this case.
-                    let current_ground_time = event_time
-                        .saturating_sub(next_locking_data.last_touchdown.unwrap());
+                    let current_ground_time =
+                        event_time.saturating_sub(next_locking_data.last_touchdown.unwrap());
                     let remaining_ground_time = next_locking_data
                         .ground_time_left
                         .saturating_sub(current_ground_time);
