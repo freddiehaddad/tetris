@@ -200,6 +200,12 @@ impl RotationSystem for Okay {
     }
 
     fn place_initial(&mut self, shape: Tetromino) -> ActivePiece {
+        let pos = match shape {
+            Tetromino::O => (4, 20),
+            _ => (3, 20),
+        };
+        let orientation = Orientation::N;
+        /* TODO: Custom, but weird, spawn positions/orientation.
         let (orientation, pos) = match shape {
             Tetromino::O => (Orientation::N, (4, 20)),
             Tetromino::I => (Orientation::N, (3, 20)),
@@ -208,7 +214,7 @@ impl RotationSystem for Okay {
             Tetromino::T => (Orientation::N, (3, 20)),
             Tetromino::L => (Orientation::E, (4, 20)),
             Tetromino::J => (Orientation::W, (4, 20)),
-        };
+        };*/
         ActivePiece {
             shape,
             orientation,

@@ -375,7 +375,6 @@ impl<T: Write> App<T> {
             Gamemode::sprint(NonZeroU32::try_from(5).unwrap()),
             Gamemode::ultra(NonZeroU32::try_from(5).unwrap()),
             Gamemode::master(),
-            Gamemode::endless(),
         ];
         let (d_time, d_score, d_pieces, d_lines, d_level) = (Duration::from_secs(5), 200, 1, 5, 1);
         let mut selected = 0usize;
@@ -933,7 +932,9 @@ impl<T: Write> App<T> {
         */
         let selection = vec![
             Menu::NewGame,
-            Menu::Scores,
+            // TODO: Uncomment this once Score screen is usable.
+            // Menu::Scores,
+            Menu::Options,
             Menu::Quit("quit after game over".to_string()),
         ];
         self.generic_game_finished(selection, gamemode, gamestate, action_stats, false)
@@ -954,7 +955,9 @@ impl<T: Write> App<T> {
         */
         let selection = vec![
             Menu::NewGame,
-            Menu::Scores,
+            // TODO: Uncomment this once Score screen is usable.
+            // Menu::Scores,
+            Menu::Options,
             Menu::Quit("quit after game complete".to_string()),
         ];
         self.generic_game_finished(selection, gamemode, gamestate, action_stats, true)
@@ -988,7 +991,120 @@ impl<T: Write> App<T> {
 
         MenuUpdate::Pop
         */
-        self.generic_placeholder_widget("Options", vec![Menu::ConfigureControls])
+        let selection_len = 2;
+        let mut selected = 0usize;
+        loop {
+            let w_main = Self::W_MAIN.into();
+            let (x_main, y_main) = Self::fetch_main_xy();
+            let y_selection = Self::H_MAIN / 5;
+            self.term
+                .queue(terminal::Clear(terminal::ClearType::All))?
+                .queue(MoveTo(x_main, y_main + y_selection))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    "Settings"
+                )))?
+                .queue(MoveTo(x_main, y_main + y_selection + 2))?
+                .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?
+                .queue(MoveTo(
+                    x_main,
+                    y_main + y_selection + 4 + u16::try_from(0).unwrap(),
+                ))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    if selected == 0 {
+                        format!(">>> Configure Controls <<<")
+                    } else {
+                        "Configure Controls".to_string()
+                    }
+                )))?
+                .queue(MoveTo(
+                    x_main,
+                    y_main + y_selection + 4 + u16::try_from(1).unwrap(),
+                ))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    if selected == 1 {
+                        format!(">>> FPS: {} <<<", self.settings.game_fps)
+                    } else {
+                        format!("FPS: {}", self.settings.game_fps)
+                    }
+                )))?
+                .queue(MoveTo(
+                    x_main,
+                    y_main + y_selection + 4 + u16::try_from(selection_len).unwrap() + 3,
+                ))?
+                .queue(PrintStyledContent(
+                    format!("{:^w_main$}", "Use [←] [→] [↑] [↓] [Esc] [Enter].",).italic(),
+                ))?;
+            self.term.flush()?;
+            // Wait for new input.
+            match event::read()? {
+                // Quit menu.
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                    kind: Press | Repeat,
+                    state: _,
+                }) => {
+                    break Ok(MenuUpdate::Push(Menu::Quit(
+                        "exited with ctrl-c".to_string(),
+                    )))
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Esc,
+                    kind: Press,
+                    ..
+                }) => break Ok(MenuUpdate::Pop),
+                // Select next menu.
+                Event::Key(KeyEvent {
+                    code: KeyCode::Enter,
+                    kind: Press,
+                    ..
+                }) => {
+                    if selected == 0 {
+                        break Ok(MenuUpdate::Push(Menu::ConfigureControls));
+                    }
+                }
+                // Move selector up.
+                Event::Key(KeyEvent {
+                    code: KeyCode::Up,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    selected += selection_len - 1;
+                }
+                // Move selector down.
+                Event::Key(KeyEvent {
+                    code: KeyCode::Down,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    selected += 1;
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Right,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    if selected == 1 {
+                        self.settings.game_fps += 1.0;
+                    }
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Left,
+                    kind: Press | Repeat,
+                    ..
+                }) => {
+                    if selected == 1 && self.settings.game_fps > 0.0 {
+                        self.settings.game_fps -= 1.0;
+                    }
+                }
+                // Other event: don't care.
+                _ => {}
+            }
+            selected = selected.rem_euclid(selection_len);
+        }
     }
 
     fn configurecontrols(&mut self) -> io::Result<MenuUpdate> {
