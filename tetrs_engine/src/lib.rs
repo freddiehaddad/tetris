@@ -1,15 +1,6 @@
 mod rotation_systems;
 mod tetromino_generators;
 
-/*
-## TODO:
- * `fn drop_delay` curve could be tweaked.
- * `fn lock_delay` curve could be tweaked.
- * Gamemode "finesse" where you minimize `Finesse(u32)` for certain number of `Pieces(100)`.
- * Gamemode "increment" where your time is short but can be regained with well-executed actions.
- * Gamemode "???" where special, distinct powerups are triggered by different well-executed actions.
- */
-
 use std::{
     collections::{HashMap, VecDeque},
     fmt,

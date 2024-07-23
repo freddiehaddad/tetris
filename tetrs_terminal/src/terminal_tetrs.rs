@@ -21,7 +21,7 @@ use tetrs_engine::{Button, ButtonsPressed, Game, GameState, Gamemode, MeasureSta
 use crate::game_input_handler::{ButtonSignal, CT_Keycode, CrosstermHandler};
 use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
 
-// TODO: This should be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
+// NOTE: This could be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
 pub type ActionStats = ([u32; 5], Vec<u32>);
 
 #[derive(Debug)]
@@ -35,8 +35,8 @@ enum Menu {
         last_paused: Instant,
         action_stats: ActionStats,
     },
-    GameOver(String, Box<GameState>, ActionStats),
-    GameComplete(String, Box<GameState>, ActionStats),
+    GameOver(Gamemode, Box<GameState>, ActionStats),
+    GameComplete(Gamemode, Box<GameState>, ActionStats),
     Pause, // TODO: Add information so game stats can be displayed here.
     Options,
     ConfigureControls,
@@ -204,11 +204,11 @@ impl<T: Write> App<T> {
                     action_stats,
                 ),
                 Menu::Pause => self.pause(),
-                Menu::GameOver(mode_name, gamestate, action_stats) => {
-                    self.gameover(mode_name, gamestate, action_stats)
+                Menu::GameOver(gamemode, gamestate, action_stats) => {
+                    self.gameover(gamemode, gamestate, action_stats)
                 }
-                Menu::GameComplete(mode_name, gamestate, action_stats) => {
-                    self.gamecomplete(mode_name, gamestate, action_stats)
+                Menu::GameComplete(gamemode, gamestate, action_stats) => {
+                    self.gamecomplete(gamemode, gamestate, action_stats)
                 }
                 Menu::Scores => self.scores(),
                 Menu::About => self.about(),
@@ -707,7 +707,7 @@ impl<T: Write> App<T> {
                 } else {
                     Menu::GameOver
                 }(
-                    game.config().gamemode.name.clone(),
+                    game.config().gamemode.clone(),
                     Box::new(game.state().clone()),
                     action_stats.clone(),
                 );
@@ -761,7 +761,7 @@ impl<T: Write> App<T> {
     fn generic_game_finished(
         &mut self,
         selection: Vec<Menu>,
-        mode_name: &str,
+        gamemode: &Gamemode,
         stats: &GameState,
         action_stats: &ActionStats,
         success: bool,
@@ -833,13 +833,9 @@ impl<T: Write> App<T> {
                 .queue(Print(format!(
                     "{:^w_main$}",
                     format!(
-                        "Game {}!{}",
+                        "Game {}! - {}",
                         if success { "Completed" } else { "Over" },
-                        if success {
-                            format!(" - {}", mode_name.to_ascii_uppercase())
-                        } else {
-                            "".to_string()
-                        }
+                        gamemode.name.to_ascii_uppercase()
                     )
                 )))?
                 .queue(MoveTo(x_main, y_main + y_selection + 2))?
@@ -956,7 +952,7 @@ impl<T: Write> App<T> {
 
     fn gameover(
         &mut self,
-        mode_name: &str,
+        gamemode: &Gamemode,
         gamestate: &GameState,
         action_stats: &ActionStats,
     ) -> io::Result<MenuUpdate> {
@@ -972,12 +968,12 @@ impl<T: Write> App<T> {
             Menu::Scores,
             Menu::Quit("quit after game over".to_string()),
         ];
-        self.generic_game_finished(selection, mode_name, gamestate, action_stats, false)
+        self.generic_game_finished(selection, gamemode, gamestate, action_stats, false)
     }
 
     fn gamecomplete(
         &mut self,
-        mode_name: &str,
+        gamemode: &Gamemode,
         gamestate: &GameState,
         action_stats: &ActionStats,
     ) -> io::Result<MenuUpdate> {
@@ -993,7 +989,7 @@ impl<T: Write> App<T> {
             Menu::Scores,
             Menu::Quit("quit after game complete".to_string()),
         ];
-        self.generic_game_finished(selection, mode_name, gamestate, action_stats, true)
+        self.generic_game_finished(selection, gamemode, gamestate, action_stats, true)
     }
 
     fn pause(&mut self) -> io::Result<MenuUpdate> {

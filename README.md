@@ -1,7 +1,6 @@
 <div align="center"><img width="440" src="https://repository-images.githubusercontent.com/816034047/9eba09ef-d6da-4b4c-9884-630e7f87e102" /></div>
 
-
-# Tetromino Game Engine + A Playable Terminal Implementation.
+# Tetromino Game Engine + A Playable Terminal Implementation
 
 ## How to run `tetrs_terminal`
 Pre-compiled:
@@ -11,7 +10,7 @@ Compiling yourself:
 - Have the [Rust](https://www.rust-lang.org/) compiler (and Cargo) installed.
 - [Download](<https://github.com/Strophox/tetrs/archive/refs/heads/main.zip>) (or `git clone`) this repo.
 - Navigate to `tetrs/` (or `tetrs_terminal/`) and compile with `cargo run`.
-- (Relevant keys [`Esc`,`Enter`,`←`,`→`,`↑`,`↓`,`A`,`D`] also shown inside the application)
+- (Relevant keys [`Esc` `Enter` `←` `→` `↑` `↓` `A` `D`] also shown inside the application)
 
 Additional notes:
 - Set the game framerate with `./tetrs_terminal --fps=60` (or `cargo run -- --fps=60`) (default is 30fps).
