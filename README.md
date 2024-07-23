@@ -1,5 +1,6 @@
 <div align="center"><img width="440" src="https://repository-images.githubusercontent.com/816034047/9eba09ef-d6da-4b4c-9884-630e7f87e102" /></div>
 
+
 # Tetromino Game Engine + A Playable Terminal Implementation
 
 ## How to run `tetrs_terminal`
@@ -10,7 +11,6 @@ Compiling yourself:
 - Have the [Rust](https://www.rust-lang.org/) compiler (and Cargo) installed.
 - [Download](<https://github.com/Strophox/tetrs/archive/refs/heads/main.zip>) (or `git clone`) this repo.
 - Navigate to `tetrs/` (or `tetrs_terminal/`) and compile with `cargo run`.
-- (Relevant keys [`Esc` `Enter` `←` `→` `↑` `↓` `A` `D`] also shown inside the application)
 
 Additional notes:
 - Set the game framerate with `./tetrs_terminal --fps=60` (or `cargo run -- --fps=60`) (default is 30fps).
@@ -37,16 +37,45 @@ game.update(None, update_time_2);
 let GameState { board, .. } = game.state();
 ```
 
+
 # Features of the Frontend / Terminal Application
+
 TODO: GIFs and screenshots.
-- 
+
+Currently implemented features and considerations are:
+- Menu navigation
+  - Title, Start New Game, Game, Pause, Quit.
+  - *Implemented but currently empty:* Configure Controls, Scoreboard, About.
+- Gamemode selection
+  - Marathon, Sprint, Ultra, Master, Endless.
+  - Custom Mode: level start, level increment, limit *(Time, Score, Pieces, Lines, Level; None)*.
+- Gameplay
+  - (Guideline-)Colored pieces.
+  - Next preview (N=1).
+  - Ghost piece.
+  - Animations for hard drops, line clears and piece locking.
+  - Stats for the current game
+    - Level, Score, Lines, Time, Pieces generated
+  - For technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
+
+Game controls are not customizable at the time and default to the following:
+| Key | Action |
+| -: | :-: |
+| `Esc` | Pause game |
+| `A` | Rotate left |
+| `D` | Rotate right |
+| `←` | Move left |
+| `→` | Move right |
+| `↓` | Soft drop |
+| `↑` | Hard drop |
+
 
 # Features of the Tetrs Engine
 TODO: `all` the features here.
 
 
 # Further Notes
-This project allowed me to have my first 'proper' learning experiences with programming a larger Rust project, interactive game (in the console), and the intricacies of Tetris all at once.
+This project allowed me to have my first 'proper' learning experiences with programming a larger Rust project, interactive game (in the console), and the intricacies of Tetris (see [Features of the Tetrs Engine](#features-of-the-tetrs-engine)) all at once.
 
 On the Rust side of things I learned about
 - some [coding](https://docs.kernel.org/rust/coding-guidelines.html) [style](https://doc.rust-lang.org/nightly/style-guide/) [guidelines](https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/style.md#getters--setters) & `cargo fmt` (~and `#[rustfmt::skip]`~),
@@ -63,6 +92,6 @@ On the Rust side of things I learned about
 - [cargo git dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories) so other people *could* reuse the backend,
 - and finally [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases.
 
-Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/), and how to decouple it from render framerate to come up with the proper `Game::update` abstraction.
+Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) to properly abstract `Game::update` (allow arbitrary-time user input, make update decoupled from framerate). I also spent some time analyzing the menus of [Noita](https://noitagame.com/) to help me come up with my own menu navigation.
 
-~I also found that there already *are*, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub - oops.~
+~~I also found that there already *are*, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub - oops.~~
