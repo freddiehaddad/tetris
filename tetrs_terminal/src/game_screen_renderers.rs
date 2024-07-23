@@ -11,16 +11,17 @@ use crossterm::{
     style::{self, Color, Print, PrintStyledContent, Stylize},
     terminal, QueueableCommand,
 };
-use tetrs_lib::{
-    Button, Coord, FeedbackEvent, Game, GameConfig, GameState, MeasureStat, Tetromino, TileTypeID,
+use tetrs_engine::{
+    Button, Coord, FeedbackEvent, Game, GameConfig, GameState, MeasureStat, Orientation, Tetromino,
+    TileTypeID,
 };
 
-use crate::terminal_tetrs::{format_duration, ActionStats, TerminalTetrs};
+use crate::terminal_tetrs::{format_duration, ActionStats, App};
 
 pub trait GameScreenRenderer {
     fn render<T>(
         &mut self,
-        ctx: &mut TerminalTetrs<T>,
+        app: &mut App<T>,
         game: &mut Game,
         action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
@@ -44,7 +45,7 @@ pub struct UnicodeRenderer {
 impl GameScreenRenderer for DebugRenderer {
     fn render<T>(
         &mut self,
-        ctx: &mut TerminalTetrs<T>,
+        app: &mut App<T>,
         game: &mut Game,
         _action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
@@ -65,10 +66,10 @@ impl GameScreenRenderer for DebugRenderer {
                 temp_board[y][x] = Some(tile_type_id);
             }
         }
-        ctx.term
+        app.term
             .queue(MoveTo(0, 0))?
             .queue(terminal::Clear(terminal::ClearType::FromCursorDown))?;
-        ctx.term
+        app.term
             .queue(Print("   +--------------------+"))?
             .queue(MoveToNextLine(1))?;
         for (idx, line) in temp_board.iter().take(20).enumerate().rev() {
@@ -90,12 +91,12 @@ impl GameScreenRenderer for DebugRenderer {
                     .collect::<Vec<_>>()
                     .join("")
             );
-            ctx.term.queue(Print(txt_line))?.queue(MoveToNextLine(1))?;
+            app.term.queue(Print(txt_line))?.queue(MoveToNextLine(1))?;
         }
-        ctx.term
+        app.term
             .queue(Print("   +--------------------+"))?
             .queue(MoveToNextLine(1))?;
-        ctx.term
+        app.term
             .queue(style::Print(format!(
                 "   {:?}",
                 last_updated.saturating_duration_since(game.state().time_started)
@@ -152,10 +153,10 @@ impl GameScreenRenderer for DebugRenderer {
             });
         }
         for str in feed_evt_msgs.iter().take(16) {
-            ctx.term.queue(Print(str))?.queue(MoveToNextLine(1))?;
+            app.term.queue(Print(str))?.queue(MoveToNextLine(1))?;
         }
         // Execute draw.
-        ctx.term.flush()?;
+        app.term.flush()?;
         Ok(())
     }
 }
@@ -164,7 +165,7 @@ impl GameScreenRenderer for UnicodeRenderer {
     // NOTE: (note) what is the concept of having an ADT but some functions are only defined on some variants (that may contain record data)?
     fn render<T>(
         &mut self,
-        ctx: &mut TerminalTetrs<T>,
+        app: &mut App<T>,
         game: &mut Game,
         action_stats: &mut ActionStats,
         new_feedback_events: Vec<(Instant, FeedbackEvent)>,
@@ -172,7 +173,7 @@ impl GameScreenRenderer for UnicodeRenderer {
     where
         T: Write,
     {
-        let (x_main, y_main) = TerminalTetrs::<T>::fetch_main_xy();
+        let (x_main, y_main) = App::<T>::fetch_main_xy();
         let GameState {
             time_started,
             last_updated,
@@ -252,14 +253,14 @@ impl GameScreenRenderer for UnicodeRenderer {
             ("".to_string(), "".to_string())
         };
         let key_icon_pause = fmt_key(KeyCode::Esc);
-        let key_icons_moveleft = ctx
+        let key_icons_moveleft = app
             .settings
             .keybinds
             .iter()
             .filter_map(|(&k, &b)| (b == Button::MoveLeft).then_some(fmt_key(k)))
             .collect::<Vec<String>>()
             .join(" ");
-        let key_icons_moveright = ctx
+        let key_icons_moveright = app
             .settings
             .keybinds
             .iter()
@@ -267,14 +268,14 @@ impl GameScreenRenderer for UnicodeRenderer {
             .collect::<Vec<String>>()
             .join(" ");
         let key_icons_move = format!("{key_icons_moveleft} {key_icons_moveright}");
-        let key_icons_rotateleft = ctx
+        let key_icons_rotateleft = app
             .settings
             .keybinds
             .iter()
             .filter_map(|(&k, &b)| (b == Button::RotateLeft).then_some(fmt_key(k)))
             .collect::<Vec<String>>()
             .join(" ");
-        let key_icons_rotateright = ctx
+        let key_icons_rotateright = app
             .settings
             .keybinds
             .iter()
@@ -282,14 +283,14 @@ impl GameScreenRenderer for UnicodeRenderer {
             .collect::<Vec<String>>()
             .join(" ");
         let key_icons_rotate = format!("{key_icons_rotateleft} {key_icons_rotateright}");
-        let key_icons_dropsoft = ctx
+        let key_icons_dropsoft = app
             .settings
             .keybinds
             .iter()
             .filter_map(|(&k, &b)| (b == Button::DropSoft).then_some(fmt_key(k)))
             .collect::<Vec<String>>()
             .join(" ");
-        let key_icons_drophard = ctx
+        let key_icons_drophard = app
             .settings
             .keybinds
             .iter()
@@ -343,11 +344,11 @@ impl GameScreenRenderer for UnicodeRenderer {
         let (x_preview, y_preview) = (49, 12);
         let (x_messages, y_messages) = (48, 15);
         // Begin frame update.
-        ctx.term
+        app.term
             .queue(terminal::BeginSynchronizedUpdate)?
             .queue(terminal::Clear(terminal::ClearType::All))?;
         for (y_screen, str) in screen.iter().enumerate() {
-            ctx.term
+            app.term
                 .queue(cursor::MoveTo(
                     x_main,
                     y_main + u16::try_from(y_screen).unwrap(),
@@ -428,7 +429,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             };
             // SAFETY: Valid ASCII bytes.
             let tile = String::from_utf8(vec![char, char]).unwrap();
-            ctx.term
+            app.term
                 .queue(board_move_to(*pos))?
                 .queue(PrintStyledContent(tile.with(tile_color(*tile_type_id))))?;
         }
@@ -437,7 +438,7 @@ impl GameScreenRenderer for UnicodeRenderer {
         for (y, line) in board.iter().enumerate().take(21).rev() {
             for (x, cell) in line.iter().enumerate() {
                 if let Some(tile_type_id) = cell {
-                    ctx.term
+                    app.term
                         .queue(board_move_to((x, y)))?
                         .queue(PrintStyledContent("██".with(tile_color(*tile_type_id))))?;
                 }
@@ -448,7 +449,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             // Draw ghost piece.
             for (pos, tile_type_id) in active_piece.well_piece(board).tiles() {
                 if pos.1 <= Game::SKYLINE {
-                    ctx.term
+                    app.term
                         .queue(board_move_to(pos))?
                         .queue(PrintStyledContent("░░".with(tile_color(tile_type_id))))?;
                 }
@@ -456,7 +457,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             // Draw active piece.
             for (pos, tile_type_id) in active_piece.tiles() {
                 if pos.1 <= Game::SKYLINE {
-                    ctx.term
+                    app.term
                         .queue(board_move_to(pos))?
                         .queue(PrintStyledContent("▓▓".with(tile_color(tile_type_id))))?;
                 }
@@ -468,9 +469,9 @@ impl GameScreenRenderer for UnicodeRenderer {
             // SAFETY: `preview_count > 0`.
             let next_piece = next_pieces.front().unwrap();
             let color = tile_color(next_piece.tiletypeid());
-            for (x, y) in next_piece.minos(tetrs_lib::Orientation::N) {
+            for (x, y) in next_piece.minos(Orientation::N) {
                 // SAFETY: We will not exceed the bounds by drawing pieces.
-                ctx.term
+                app.term
                     .queue(MoveTo(
                         x_main + x_preview + u16::try_from(2 * x).unwrap(),
                         y_main + y_preview - u16::try_from(y).unwrap(),
@@ -505,7 +506,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                     };
                     for (pos, _tile_type_id) in piece.tiles() {
                         if pos.1 <= Game::SKYLINE {
-                            ctx.term
+                            app.term
                                 .queue(board_move_to(pos))?
                                 .queue(PrintStyledContent(tile.with(Color::White)))?;
                         }
@@ -537,7 +538,7 @@ impl GameScreenRenderer for UnicodeRenderer {
                         continue;
                     };
                     for y_line in lines_cleared {
-                        ctx.term
+                        app.term
                             .queue(MoveTo(
                                 x_main + x_board,
                                 y_main + y_board + u16::try_from(Game::SKYLINE - *y_line).unwrap(),
@@ -613,7 +614,7 @@ impl GameScreenRenderer for UnicodeRenderer {
         self.events.retain(|elt| elt.2);
         // Draw messages.
         for (y, (_event_time, message)) in self.messages.iter().enumerate() {
-            ctx.term
+            app.term
                 .queue(MoveTo(
                     x_main + x_messages,
                     y_main + y_messages + u16::try_from(y).expect("too many messages"),
@@ -625,9 +626,9 @@ impl GameScreenRenderer for UnicodeRenderer {
         });
         // Execute draw.
         // TODO: Unnecessary move?
-        // ctx.term.queue(MoveTo(0,0))?;
-        ctx.term.queue(terminal::EndSynchronizedUpdate)?;
-        ctx.term.flush()?;
+        // app.term.queue(MoveTo(0,0))?;
+        app.term.queue(terminal::EndSynchronizedUpdate)?;
+        app.term.flush()?;
         Ok(())
     }
 }

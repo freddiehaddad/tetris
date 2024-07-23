@@ -18,7 +18,7 @@ struct Args {
 fn main() -> Result<(), io::Error> {
     let args = Args::parse();
     let stdout = io::BufWriter::new(io::stdout());
-    let mut app = terminal_tetrs::TerminalTetrs::new(stdout, args.fps);
+    let mut app = terminal_tetrs::App::new(stdout, args.fps);
     let msg = app.run()?;
     println!("{msg}");
     Ok(())

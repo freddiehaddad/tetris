@@ -16,7 +16,7 @@ use crossterm::{
     style::{self, Print, PrintStyledContent, Stylize},
     terminal, ExecutableCommand, QueueableCommand,
 };
-use tetrs_lib::{Button, ButtonsPressed, Game, GameState, Gamemode, MeasureStat};
+use tetrs_engine::{Button, ButtonsPressed, Game, GameState, Gamemode, MeasureStat};
 
 use crate::game_input_handler::{ButtonSignal, CT_Keycode, CrosstermHandler};
 use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
@@ -80,12 +80,12 @@ impl std::fmt::Display for Menu {
 }
 
 #[derive(Debug)]
-pub struct TerminalTetrs<T: Write> {
+pub struct App<T: Write> {
     pub term: T,
     pub settings: Settings,
 }
 
-impl<T: Write> Drop for TerminalTetrs<T> {
+impl<T: Write> Drop for App<T> {
     fn drop(&mut self) {
         // Console epilogue: de-initialization.
         // TODO FIXME BUG: There's this horrible bug where the keyboard flags pop incorrectly: if I press escape in the pause menu, it resumes the game, but when I release escape during the game immediately after it interprets this as a "Press" as well, pausing again.
@@ -99,7 +99,7 @@ impl<T: Write> Drop for TerminalTetrs<T> {
     }
 }
 
-impl<T: Write> TerminalTetrs<T> {
+impl<T: Write> App<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
 
@@ -533,7 +533,7 @@ impl<T: Write> TerminalTetrs<T> {
                     let now = Instant::now();
                     break Ok(MenuUpdate::Push(Menu::Game {
                         game: Box::new(Game::with_gamemode(mode, now)),
-                        game_screen_renderer: UnicodeRenderer::default(),
+                        game_screen_renderer: Default::default(),
                         total_duration_paused: Duration::ZERO,
                         last_paused: now,
                         action_stats: ActionStats::default(),
@@ -548,8 +548,11 @@ impl<T: Write> TerminalTetrs<T> {
                     if selected_custom > 0 {
                         match selected_custom {
                             1 => {
-                                self.settings.custom_mode.start_level =
-                                    self.settings.custom_mode.start_level.saturating_add(d_level);
+                                self.settings.custom_mode.start_level = self
+                                    .settings
+                                    .custom_mode
+                                    .start_level
+                                    .saturating_add(d_level);
                             }
                             2 => {
                                 self.settings.custom_mode.increment_level =
@@ -863,7 +866,14 @@ impl<T: Write> TerminalTetrs<T> {
                 .queue(MoveTo(x_main, y_main + y_selection + 10))?
                 .queue(Print(format!("{:^w_main$}", action_stats_str)))?
                 .queue(MoveTo(x_main, y_main + y_selection + 11))?
-                .queue(Print(format!("{:^w_main$}", format!("Average score bonus: {:.1}", f64::from(score_bonuses.iter().sum::<u32>()) / (score_bonuses.len() as f64/*I give up*/)))))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    format!(
+                        "Average score bonus: {:.1}",
+                        f64::from(score_bonuses.iter().sum::<u32>())
+                            / (score_bonuses.len() as f64/*I give up*/)
+                    )
+                )))?
                 .queue(MoveTo(x_main, y_main + y_selection + 13))?
                 .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
             let names = selection

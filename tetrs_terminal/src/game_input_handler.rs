@@ -12,7 +12,7 @@ use std::{
 pub use crossterm::event::KeyCode as CT_Keycode;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 
-use tetrs_lib::Button;
+use tetrs_engine::Button;
 
 pub type ButtonSignal = Option<(Instant, Button, bool)>;
 
