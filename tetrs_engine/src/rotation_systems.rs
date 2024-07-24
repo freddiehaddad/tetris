@@ -1,7 +1,7 @@
 // TODO: Implement Super Rotation System.
 use crate::{ActivePiece, Board, Orientation, Tetromino};
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RotationSystem {
     Ok,

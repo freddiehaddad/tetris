@@ -3,13 +3,13 @@ mod tetromino_generators;
 
 use std::{
     collections::{HashMap, VecDeque},
-    fmt,
     num::NonZeroU32,
     ops,
     time::Duration,
 };
 
 pub use rotation_systems::RotationSystem;
+pub use tetromino_generators::TetrominoGenerator;
 
 pub type ButtonsPressed = [bool; 7];
 // NOTE: Would've liked to use `impl Game { type Board = ...` (https://github.com/rust-lang/rust/issues/8995)
@@ -21,7 +21,7 @@ pub type Offset = (isize, isize);
 pub type GameTime = Duration;
 type EventMap = HashMap<Event, GameTime>;
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Orientation {
     N,
@@ -30,7 +30,7 @@ pub enum Orientation {
     W,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Tetromino {
     O,
@@ -42,7 +42,7 @@ pub enum Tetromino {
     J,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActivePiece {
     pub shape: Tetromino,
@@ -60,7 +60,7 @@ pub enum Stat {
     Score(u32),
 }
 
-#[derive(Eq, Clone, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gamemode {
     pub name: String,
@@ -70,7 +70,7 @@ pub struct Gamemode {
     pub optimize: Stat,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Button {
     MoveLeft,
@@ -82,7 +82,7 @@ pub enum Button {
     DropHard,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LockingData {
     touches_ground: bool,
@@ -107,18 +107,19 @@ pub enum Event {
     Fall,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GameOver {
     LockOut,
     BlockOut,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, PartialOrd, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameConfig {
     pub gamemode: Gamemode,
     pub rotation_system: RotationSystem,
+    pub tetromino_generator: TetrominoGenerator,
     pub preview_count: usize,
     pub delayed_auto_shift: Duration,
     pub auto_repeat_rate: Duration,
@@ -150,13 +151,14 @@ pub struct GameState {
     pub back_to_back_special_clears: u32, // TODO: Include this in score calculation and FeedbackEvent variant.
 }
 
+#[derive(PartialEq, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Game {
     state: GameState,
     config: GameConfig,
-    tetromino_generator: Box<dyn Iterator<Item = Tetromino>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FeedbackEvent {
     PieceLocked(ActivePiece),
@@ -431,15 +433,6 @@ impl Gamemode {
     }
 }
 
-impl PartialEq for Gamemode {
-    fn eq(&self, other: &Self) -> bool {
-        self.start_level == other.start_level
-            && self.increment_level == other.increment_level
-            && self.limit == other.limit
-            && self.optimize == other.optimize
-    }
-}
-
 impl<T> ops::Index<Button> for [T; 7] {
     type Output = T;
 
@@ -470,11 +463,12 @@ impl<T> ops::IndexMut<Button> for [T; 7] {
     }
 }
 
-impl GameConfig {
-    pub fn new(gamemode: Gamemode) -> Self {
+impl Default for GameConfig {
+    fn default() -> Self {
         Self {
-            gamemode,
+            gamemode: Gamemode::marathon(),
             rotation_system: RotationSystem::Ok,
+            tetromino_generator: TetrominoGenerator::recency(),
             preview_count: 1,
             delayed_auto_shift: Duration::from_millis(200),
             auto_repeat_rate: Duration::from_millis(50),
@@ -487,19 +481,6 @@ impl GameConfig {
     }
 }
 
-impl fmt::Debug for Game {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("Game")
-            .field("config", &self.config)
-            .field("state", &self.state)
-            .field(
-                "tetromino_generator",
-                &std::any::type_name_of_val(&self.tetromino_generator),
-            )
-            .finish()
-    }
-}
-
 impl Game {
     pub const HEIGHT: usize = Self::SKYLINE + 7; // Max height *any* mino can reach before Lock out occurs.
     pub const WIDTH: usize = 10;
@@ -508,12 +489,13 @@ impl Game {
     const LEVEL_20G: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(19) };
 
     pub fn with_gamemode(gamemode: Gamemode) -> Self {
-        let default_config = GameConfig::new(gamemode);
-        Self::with_config(default_config)
+        Self::with_config(GameConfig {
+            gamemode,
+            ..Default::default()
+        })
     }
 
-    pub fn with_config(config: GameConfig) -> Self {
-        let mut tetromino_generator = Box::new(tetromino_generators::RecencyProbGen::new());
+    pub fn with_config(mut config: GameConfig) -> Self {
         let state = GameState {
             game_time: Duration::ZERO,
             finished: None,
@@ -523,7 +505,8 @@ impl Game {
                 .take(Self::HEIGHT)
                 .collect(),
             active_piece_data: None,
-            next_pieces: tetromino_generator
+            next_pieces: config
+                .tetromino_generator
                 .by_ref()
                 .take(config.preview_count)
                 .collect(),
@@ -534,11 +517,7 @@ impl Game {
             consecutive_line_clears: 0,
             back_to_back_special_clears: 0,
         };
-        Game {
-            config,
-            state,
-            tetromino_generator,
-        }
+        Game { config, state }
     }
 
     pub fn finished(&self) -> Option<Result<(), GameOver>> {
@@ -737,7 +716,7 @@ impl Game {
                     .saturating_sub(self.state.next_pieces.len());
                 self.state
                     .next_pieces
-                    .extend(self.tetromino_generator.by_ref().take(n_required_pieces));
+                    .extend(self.config.tetromino_generator.take(n_required_pieces));
                 let tetromino = self
                     .state
                     .next_pieces
