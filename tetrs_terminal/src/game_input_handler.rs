@@ -9,11 +9,11 @@ use std::{
     time::Instant,
 };
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use tetrs_engine::Button;
 
-pub type ButtonSignal = Option<(Instant, Button, bool)>;
+pub type ButtonSignal = Result<(Instant, Button, bool), bool>;
 
 #[derive(Debug)]
 pub struct CrosstermHandler {
@@ -65,12 +65,17 @@ impl CrosstermHandler {
                 };
                 let instant = Instant::now();
                 let button_signals = match event {
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                        ..
+                    }) => vec![Err(true)],
                     // Escape pressed: send interrupt.
                     Event::Key(KeyEvent {
                         code: KeyCode::Esc,
                         kind: KeyEventKind::Press,
                         ..
-                    }) => vec![None],
+                    }) => vec![Err(false), Err(false)],
                     // Candidate key pressed.
                     Event::Key(KeyEvent {
                         code: key,
@@ -78,10 +83,9 @@ impl CrosstermHandler {
                         ..
                     }) => match keybinds.get(&key) {
                         // Binding found: send button press.
-                        Some(&button) => vec![
-                            Some((instant, button, true)),
-                            Some((instant, button, false)),
-                        ],
+                        Some(&button) => {
+                            vec![Ok((instant, button, true)), Ok((instant, button, false))]
+                        }
                         // No binding: ignore.
                         None => continue,
                     },
@@ -89,8 +93,6 @@ impl CrosstermHandler {
                     _ => continue,
                 };
                 for button_signal in button_signals {
-                    // crossterm::QueueableCommand::queue(&mut std::io::stderr(), crossterm::style::Print(format!("ct-send: {button_signal:?}."))).unwrap();
-                    // crossterm::QueueableCommand::queue(&mut std::io::stderr(), crossterm::cursor::MoveToNextLine(1)).unwrap();
                     let _ = sender.send(button_signal);
                 }
             }
@@ -117,13 +119,19 @@ impl CrosstermHandler {
                     Ok(event) => (Instant::now(), event),
                 };
                 // Extract possibly relevant game button signal from event.
-                let button_signal = match event {
+                let button_signals = match event {
+                    // Direct interrupt.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                        ..
+                    }) => vec![Err(true)],
                     // Escape pressed: send pause/interrupt.
                     Event::Key(KeyEvent {
                         code: KeyCode::Esc,
                         kind: KeyEventKind::Press,
                         ..
-                    }) => None,
+                    }) => vec![Err(false), Err(false)],
                     // TTY simulated press repeat: ignore.
                     Event::Key(KeyEvent {
                         kind: KeyEventKind::Repeat,
@@ -134,12 +142,14 @@ impl CrosstermHandler {
                         // No binding: ignore.
                         None => continue,
                         // Binding found: send button un-/press.
-                        Some(&button) => Some((instant, button, kind == KeyEventKind::Press)),
+                        Some(&button) => vec![Ok((instant, button, kind == KeyEventKind::Press))],
                     },
                     // Don't care about other events: ignore.
                     _ => continue,
                 };
-                let _ = sender.send(button_signal);
+                for button_signal in button_signals {
+                    let _ = sender.send(button_signal);
+                }
             }
         })
     }

@@ -29,7 +29,7 @@ impl RotationSystem {
             _ => (3, 20),
         };
         let orientation = Orientation::N;
-        /* TODO: Custom, but weird, spawn positions/orientation.
+        /* NOTE: Unused spawn positions/orientations. While nice and symmetrical :): also unusual.
         let (orientation, pos) = match shape {
             Tetromino::O => (Orientation::N, (4, 20)),
             Tetromino::I => (Orientation::N, (3, 20)),
@@ -70,7 +70,6 @@ fn rotate_ok(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<Act
         1 => false,
         // 180 rotation will behave like two free-air rotations in a single press.
         2 => {
-            // TODO: Implement 180 rotation.
             #[rustfmt::skip]
             let kicks = match piece.shape {
                 Tetromino::O | Tetromino::I | Tetromino::S | Tetromino::Z => [(0, 0)].iter(),

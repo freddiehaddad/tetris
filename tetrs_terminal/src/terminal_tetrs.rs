@@ -727,10 +727,15 @@ impl<T: Write> App<T> {
             'idle_loop: loop {
                 let frame_idle_remaining = next_frame_at - Instant::now();
                 match rx.recv_timeout(frame_idle_remaining) {
-                    Ok(None) => {
+                    Ok(Err(true)) => {
+                        break 'render_loop MenuUpdate::Push(Menu::Quit(
+                            "exited with ctrl-c".to_string(),
+                        ));
+                    }
+                    Ok(Err(false)) => {
                         break 'render_loop MenuUpdate::Push(Menu::Pause);
                     }
-                    Ok(Some((instant, button, button_state))) => {
+                    Ok(Ok((instant, button, button_state))) => {
                         buttons_pressed[button] = button_state;
                         let game_time_userinput = instant.saturating_duration_since(*time_started)
                             - *total_duration_paused;
