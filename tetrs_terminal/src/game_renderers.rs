@@ -311,17 +311,6 @@ impl GameScreenRenderer for UnicodeRenderer {
                 .queue(Print(str))?;
         }
         // Board: helpers.
-        // TODO: Old tile colors.
-        let _tile_color = |tile: TileTypeID| match tile.get() {
-            1 => Color::Yellow,
-            2 => Color::Cyan,
-            3 => Color::Green,
-            4 => Color::Red,
-            5 => Color::DarkMagenta,
-            6 => Color::DarkYellow,
-            7 => Color::Blue,
-            t => unimplemented!("formatting unknown tile id {t}"),
-        };
         let tile_color = |tile: TileTypeID| match tile.get() {
             1 => Color::Rgb {
                 r: 254,
@@ -368,10 +357,8 @@ impl GameScreenRenderer for UnicodeRenderer {
         };
         // Board: draw hard drop trail.
         for (event_time, pos, h, tile_type_id, relevant) in self.hard_drop_tiles.iter_mut() {
-            // TODO: Hard drop animation polish.
             let elapsed = game_time.saturating_sub(*event_time);
             let luminance_map = "@$#%*+~.".as_bytes();
-            // TODO: Old hard drop animation timings.
             // let Some(&char) = [50, 60, 70, 80, 90, 110, 140, 180]
             let Some(&char) = [50, 70, 90, 110, 130, 150, 180, 240]
                 .iter()
@@ -419,7 +406,7 @@ impl GameScreenRenderer for UnicodeRenderer {
             }
         }
         // Draw preview.
-        // TODO: Larger preview.
+        // TODO: Possibly implement more preview.
         if game.config().preview_count > 0 {
             // SAFETY: `preview_count > 0`.
             let next_piece = next_pieces.front().unwrap();
@@ -445,7 +432,6 @@ impl GameScreenRenderer for UnicodeRenderer {
             let elapsed = game_time.saturating_sub(*event_time);
             match event {
                 FeedbackEvent::PieceLocked(piece) => {
-                    // TODO: Polish locking animation?
                     let Some(tile) = [
                         (50, "██"),
                         (75, "▓▓"),
@@ -468,7 +454,6 @@ impl GameScreenRenderer for UnicodeRenderer {
                     }
                 }
                 FeedbackEvent::LineClears(lines_cleared, line_clear_delay) => {
-                    // TODO: Polish line clear animation?
                     if line_clear_delay.is_zero() {
                         *relevant = false;
                         continue;
@@ -560,7 +545,6 @@ impl GameScreenRenderer for UnicodeRenderer {
                     self.messages.push((*event_time, strs.join(" ")));
                     *relevant = false;
                 }
-                // TODO: Better Debug?
                 FeedbackEvent::Debug(msg) => {
                     self.messages.push((*event_time, msg.clone()));
                     *relevant = false;

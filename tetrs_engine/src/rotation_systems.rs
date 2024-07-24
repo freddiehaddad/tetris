@@ -1,4 +1,3 @@
-// TODO: Implement Super Rotation System.
 use crate::{ActivePiece, Board, Orientation, Tetromino};
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
@@ -173,9 +172,19 @@ fn rotate_super(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<
         0 => return Some(*piece),
         // One right rotation.
         1 => false,
-        // Classic didn't define 180 rotation, just check if the "default" 180 rotation fits.
+        // Some 180 rotation I came up with.
         2 => {
-            return piece.fits_at_rotated(board, (0, 0), 2);
+            #[rustfmt::skip]
+            let kicks = match piece.shape {
+                Tetromino::O | Tetromino::I | Tetromino::S | Tetromino::Z => [(0, 0)].iter(),
+                Tetromino::T | Tetromino::L | Tetromino::J => match piece.orientation {
+                    N => [( 0,-1), ( 0, 0)].iter(),
+                    E => [(-1, 0), ( 0, 0)].iter(),
+                    S => [( 0, 1), ( 0, 0)].iter(),
+                    W => [( 1, 0), ( 0, 0)].iter(),
+                },
+            }.copied();
+            return piece.first_fit(board, kicks, 2);
         }
         // One left rotation.
         3 => true,

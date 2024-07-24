@@ -1,9 +1,7 @@
 use std::num::NonZeroU32;
 
 use rand::{
-    self,
-    distributions::{Distribution, WeightedIndex},
-    Rng,
+    self, distributions::{Distribution, WeightedIndex}, rngs::ThreadRng, Rng
 };
 
 use crate::Tetromino;
@@ -49,22 +47,33 @@ impl TetrominoGenerator {
             relative_counts: [0; 7],
         }
     }
+
+    pub(crate) fn with_rng<'a, 'b>(&'a mut self, rng: &'b mut ThreadRng) -> TetrominoIterator<'a, 'b> {
+        TetrominoIterator {
+            tetromino_generator: self,
+            rng,
+        }
+    }
 }
 
-impl Iterator for TetrominoGenerator {
+pub(crate) struct TetrominoIterator<'a, 'b> {
+    tetromino_generator: &'a mut TetrominoGenerator,
+    rng: &'b mut ThreadRng,
+}
+
+impl<'a, 'b> Iterator for TetrominoIterator<'a, 'b> {
     type Item = Tetromino;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut rng = rand::thread_rng();
-        match self {
-            TetrominoGenerator::Uniform => Some(rng.gen_range(0..=6).try_into().unwrap()),
+        match &mut self.tetromino_generator {
+            TetrominoGenerator::Uniform => Some(self.rng.gen_range(0..=6).try_into().unwrap()),
             TetrominoGenerator::Bag {
                 pieces_left,
                 multiplicity,
             } => {
                 let weights = pieces_left.iter().map(|&c| if c > 0 { 1 } else { 0 });
                 // SAFETY: Struct invariant.
-                let idx = WeightedIndex::new(weights).unwrap().sample(&mut rng);
+                let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
                 // Update individual tetromino number and maybe replenish bag (ensuring invariant).
                 pieces_left[idx] -= 1;
                 if pieces_left.iter().sum::<u32>() == 0 {
@@ -77,7 +86,7 @@ impl Iterator for TetrominoGenerator {
                 let weighing = |&x| 1.0 / f64::from(x).exp(); // Alternative weighing function: `1.0 / (f64::from(x) + 1.0);`
                 let weights = relative_counts.iter().map(weighing);
                 // SAFETY: `weights` will always be non-zero due to `weighing`.
-                let idx = WeightedIndex::new(weights).unwrap().sample(&mut rng);
+                let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
                 // Update individual tetromino counter and maybe rebalance all relative counts
                 relative_counts[idx] += 1;
                 // SAFETY: `self.relative_counts` always has a minimum.
@@ -100,7 +109,7 @@ impl Iterator for TetrominoGenerator {
                 let weighing = |x| x * x;
                 let weights = last_generated.iter().map(weighing);
                 // SAFETY: `weights` will always be non-zero due to `weighing`.
-                let idx = WeightedIndex::new(weights).unwrap().sample(&mut rng);
+                let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);
                 // Update all tetromino last_played values and maybe rebalance all relative counts..
                 for x in last_generated.iter_mut() {
                     *x += 1;

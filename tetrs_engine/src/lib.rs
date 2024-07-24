@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use rand::rngs::ThreadRng;
 pub use rotation_systems::RotationSystem;
 pub use tetromino_generators::TetrominoGenerator;
 
@@ -151,11 +152,11 @@ pub struct GameState {
     pub back_to_back_special_clears: u32, // TODO: Include this in score calculation and FeedbackEvent variant.
 }
 
-#[derive(PartialEq, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug)]
 pub struct Game {
     state: GameState,
     config: GameConfig,
+    rng: ThreadRng,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
@@ -496,6 +497,7 @@ impl Game {
     }
 
     pub fn with_config(mut config: GameConfig) -> Self {
+        let mut rng = rand::thread_rng();
         let state = GameState {
             game_time: Duration::ZERO,
             finished: None,
@@ -507,7 +509,7 @@ impl Game {
             active_piece_data: None,
             next_pieces: config
                 .tetromino_generator
-                .by_ref()
+                .with_rng(&mut rng)
                 .take(config.preview_count)
                 .collect(),
             pieces_played: [0; 7],
@@ -517,7 +519,7 @@ impl Game {
             consecutive_line_clears: 0,
             back_to_back_special_clears: 0,
         };
-        Game { config, state }
+        Game { config, state, rng }
     }
 
     pub fn finished(&self) -> Option<Result<(), GameOver>> {
@@ -716,7 +718,7 @@ impl Game {
                     .saturating_sub(self.state.next_pieces.len());
                 self.state
                     .next_pieces
-                    .extend(self.config.tetromino_generator.take(n_required_pieces));
+                    .extend(self.config.tetromino_generator.with_rng(&mut self.rng).take(n_required_pieces));
                 let tetromino = self
                     .state
                     .next_pieces
@@ -943,6 +945,8 @@ impl Game {
                 ),
             )
         });
+        self.state.board.remove(0);
+        self.state.board.push(Default::default());
         Ok(feedback_events)
     }
 

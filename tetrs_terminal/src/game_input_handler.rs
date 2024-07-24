@@ -112,7 +112,6 @@ impl CrosstermHandler {
                     break;
                 }
                 // Receive any Crossterm event.
-                // TODO: Even after game has ended this will consume one more input before seeing the flag, e.g. wasting one input of "CTRL+C"!
                 let (instant, event) = match event::read() {
                     // Spurious io::Error: ignore.
                     Err(_) => continue,

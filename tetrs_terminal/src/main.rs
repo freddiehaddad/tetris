@@ -1,5 +1,5 @@
 mod game_input_handler;
-mod game_screen_renderers;
+mod game_renderers;
 pub mod terminal_tetrs;
 
 use std::io;

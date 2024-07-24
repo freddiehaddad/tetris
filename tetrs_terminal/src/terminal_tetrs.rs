@@ -21,12 +21,13 @@ use crossterm::{
 use tetrs_engine::{Button, ButtonsPressed, Game, GameState, Gamemode, Stat};
 
 use crate::game_input_handler::{ButtonSignal, CrosstermHandler};
-use crate::game_screen_renderers::{GameScreenRenderer, UnicodeRenderer};
+use crate::game_renderers::{GameScreenRenderer, UnicodeRenderer};
 
 // NOTE: This could be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
 pub type GameRunningStats = ([u32; 5], Vec<u32>);
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct GameFinishedStats {
     timestamp: String,
     actions: [u32; 5],
@@ -35,7 +36,7 @@ pub struct GameFinishedStats {
     last_state: GameState,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum Menu {
     Title,
     NewGame,
@@ -45,11 +46,11 @@ enum Menu {
         last_paused: Instant,
         total_duration_paused: Duration,
         game_running_stats: GameRunningStats,
-        game_screen_renderer: UnicodeRenderer,
+        game_renderer: UnicodeRenderer,
     },
     GameOver,
     GameComplete,
-    Pause, // TODO: Add information so game stats can be displayed here.
+    Pause,
     Options,
     ConfigureControls,
     Scores,
@@ -76,20 +77,19 @@ impl std::fmt::Display for Menu {
     }
 }
 
-// TODO: #[derive(Debug)]
+#[derive(Clone, Debug)]
 enum MenuUpdate {
     Pop,
     Push(Menu),
 }
 
-// TODO: Derive `Default`?
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Default, Debug)]
 pub struct Settings {
     pub game_fps: f64,
     pub keybinds: HashMap<KeyCode, Button>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct App<T: Write> {
     pub term: T,
     pub settings: Settings,
@@ -100,7 +100,7 @@ pub struct App<T: Write> {
 
 impl<T: Write> Drop for App<T> {
     fn drop(&mut self) {
-        // TODO: All these errors? What do?
+        // TODO: Handle errors?
         let _ = Self::save_games(&self.games_finished);
         // Console epilogue: de-initialization.
         if self.kitty_enabled {
@@ -116,23 +116,22 @@ impl<T: Write> Drop for App<T> {
 impl<T: Write> App<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
-    // TODO: serde. Then save stuff with this.
     pub const SAVE_FILE: &'static str = "./tetrs_terminal_scores.json";
 
     pub fn new(mut terminal: T, fps: u32) -> Self {
         // Console prologue: Initializion.
+        // TODO: Handle errors?
         let _ = terminal.execute(terminal::EnterAlternateScreen);
         let _ = terminal.execute(terminal::SetTitle("Tetrs Terminal"));
         let _ = terminal.execute(cursor::Hide);
         let _ = terminal::enable_raw_mode();
         let kitty_enabled = terminal::supports_keyboard_enhancement().unwrap_or(false);
         if kitty_enabled {
-            // TODO: This is kinda iffy. Do we need all flags? What undesirable effects might there be?
+            // TODO: Kinda iffy. Do we need all flags? What undesirable effects might there be?
             let _ = terminal.execute(event::PushKeyboardEnhancementFlags(
                 event::KeyboardEnhancementFlags::all(),
             ));
         }
-        // TODO: Store different keybind mappings somewhere and get default from there.
         let keybinds = HashMap::from([
             (KeyCode::Left, Button::MoveLeft),
             (KeyCode::Right, Button::MoveRight),
@@ -165,7 +164,7 @@ impl<T: Write> App<T> {
     fn save_games(games_finished: &Vec<GameFinishedStats>) -> io::Result<()> {
         let save_str = serde_json::to_string(games_finished)?;
         let mut file = File::create(Self::SAVE_FILE)?;
-        // TODO: Handle write amount?
+        // TODO: Handle error?
         let _ = file.write(save_str.as_bytes())?;
         Ok(())
     }
@@ -196,14 +195,14 @@ impl<T: Write> App<T> {
                     total_duration_paused,
                     last_paused,
                     game_running_stats,
-                    game_screen_renderer,
+                    game_renderer,
                 } => self.game(
                     game,
                     time_started,
                     last_paused,
                     total_duration_paused,
                     game_running_stats,
-                    game_screen_renderer,
+                    game_renderer,
                 ),
                 Menu::Pause => self.pause(),
                 Menu::GameOver => self.gameover(),
@@ -217,9 +216,7 @@ impl<T: Write> App<T> {
             // Change screen session depending on what response screen gave.
             match menu_update {
                 MenuUpdate::Pop => {
-                    if menu_stack.len() > 1
-                    /*TODO: Hmm. || matches!(menu_stack.first(), Some(Menu::Title))*/
-                    {
+                    if menu_stack.len() > 1 {
                         menu_stack.pop();
                     }
                 }
@@ -234,7 +231,7 @@ impl<T: Write> App<T> {
                 }
             }
         };
-        // TODO: This is done here manually for debug reasons in case the application still crashes somehow, c.f. note in `Drop::drop(self)`.
+        // NOTE: This is done here manually (instead of `Drop::drop(self)`) so debug is not wiped in case the application crashes before reaching this point.
         let _ = self.term.execute(terminal::LeaveAlternateScreen);
         Ok(msg)
     }
@@ -511,7 +508,7 @@ impl<T: Write> App<T> {
                         last_paused: now,
                         total_duration_paused: Duration::ZERO,
                         game_running_stats: GameRunningStats::default(),
-                        game_screen_renderer: Default::default(),
+                        game_renderer: Default::default(),
                     }));
                 }
                 // Move selector up or increase stat.
@@ -653,7 +650,7 @@ impl<T: Write> App<T> {
         last_paused: &mut Instant,
         total_duration_paused: &mut Duration,
         game_running_stats: &mut GameRunningStats,
-        game_screen_renderer: &mut impl GameScreenRenderer,
+        game_renderer: &mut impl GameScreenRenderer,
     ) -> io::Result<MenuUpdate> {
         // Prepare channel with which to communicate `Button` inputs / game interrupt.
         let mut buttons_pressed = ButtonsPressed::default();
@@ -760,7 +757,7 @@ impl<T: Write> App<T> {
                 };
             }
             // TODO: Make this more elegantly modular.
-            game_screen_renderer.render(self, game, game_running_stats, new_feedback_events)?;
+            game_renderer.render(self, game, game_running_stats, new_feedback_events)?;
         };
         *last_paused = Instant::now();
         Ok(next_menu)
@@ -794,16 +791,6 @@ impl<T: Write> App<T> {
             consecutive_line_clears: _,
             back_to_back_special_clears: _,
         } = last_state;
-        // TODO: Unused.
-        // let pieces_played_str = [
-        //     format!("{}o", pieces_played[Tetromino::O]),
-        //     format!("{}i", pieces_played[Tetromino::I]),
-        //     format!("{}s", pieces_played[Tetromino::S]),
-        //     format!("{}z", pieces_played[Tetromino::Z]),
-        //     format!("{}t", pieces_played[Tetromino::T]),
-        //     format!("{}l", pieces_played[Tetromino::L]),
-        //     format!("{}j", pieces_played[Tetromino::J]),
-        // ].join(" ");
         let actions_str = [
             format!(
                 "{} Single{}",
@@ -1361,11 +1348,8 @@ impl<T: Write> App<T> {
     }
 
     fn about(&mut self) -> io::Result<MenuUpdate> {
-        /* TODO: About menu.
-
-        MenuUpdate::Pop
-        */
-        self.generic_placeholder_widget("About Tetrs", vec![])
+        /* TODO: About menu. */
+        self.generic_placeholder_widget("About Tetrs - See https://github.com/Strophox/tetrs", vec![])
     }
 }
 
