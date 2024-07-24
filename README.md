@@ -1,9 +1,9 @@
 <div align="center"><img width="440" src="https://repository-images.githubusercontent.com/816034047/9eba09ef-d6da-4b4c-9884-630e7f87e102" /></div>
 
 
-# Tetromino Game Engine + A Playable Terminal Implementation
+# Tetromino Game Engine + Playable Terminal Implementation
 
-## *Frontend:* `tetrs_terminal`
+## Frontend: `tetrs_terminal`
 
 ### How to run
 *Pre-compiled:*
@@ -50,7 +50,7 @@ The game controls default to the following:
 | `Ctrl`+`D` | Forfeit game |
 | `Ctrl`+`C` | Exit program |
 
-## *Backend:* `tetrs_engine`
+## Backend: `tetrs_engine`
 
 ### Usage of the Tetrs Engine
 Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to your project:
