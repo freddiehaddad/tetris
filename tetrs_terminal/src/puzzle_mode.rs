@@ -20,13 +20,33 @@ pub fn make_game() -> Game {
             b"OOOOO OOOO",
             b"OOOOO OOOO",
         ], VecDeque::from([Tetromino::I,Tetromino::L])),
-        ("I-Spin (I)", vec![
+        ("I-spin (i)", vec![
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOO    OO",
         ], VecDeque::from([Tetromino::I,Tetromino::I])),
+        ("I-spin (ii)", vec![
+            b"OOOOO  OOO",
+            b"OOOOO OOOO",
+            b"OOOOO OOOO",
+            b"OO    OOOO",
+        ], VecDeque::from([Tetromino::I,Tetromino::J])),
+        ("I-spin (iii)", vec![
+            b"OOOOO  OOO",
+            b"OOO OO OOO",
+            b"OOO OO OOO",
+            b"OOO     OO",
+            b"OOO OOOOOO",
+        ], VecDeque::from([Tetromino::I,Tetromino::I,Tetromino::L,])),
+        ("I-spin (iv)", vec![
+            b"OO  O   OO",
+            b"OO    OOOO",
+            b"OOOO OOOOO",
+            b"OOOO OOOOO",
+            b"OOOO OOOOO",
+        ], VecDeque::from([Tetromino::I,Tetromino::L,Tetromino::O,])),
         /* Stage Template.
         ("puzzlename", vec![
             b"OOOOOOOOOO",
@@ -59,18 +79,8 @@ pub fn make_game() -> Game {
             }) {
                 // Load in new puzzle.
                 if let Some((puzzle_name, puzzle_lines, puzzle_pieces)) = puzzles.next() {
+                    state.consecutive_line_clears = 0;
                     // Game messages.
-                    if puzzle_num > 0 {
-                        feedback_events.push((
-                            state.game_time,
-                            Feedback::Message("# Puzzle completed!".to_string()),
-                        ));
-                    } else {
-                        feedback_events.push((
-                            state.game_time,
-                            Feedback::Message("# Get a perfect clear.".to_string()),
-                        ));
-                    }
                     puzzle_num += 1;
                     feedback_events.push((
                         state.game_time,
