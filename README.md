@@ -3,19 +3,19 @@
 
 # Tetromino Game Engine + Playable Terminal Application
 
-This repository contains
-- `tetrs_terminal`, a simple, polished, efficient, cross-platform TUI implementation of the prototypical game experience, and
-- `tetrs_engine`, an abstract tetromino engine implementing a game interface with modern mechanics.
+This repository hosts:
+- `tetrs_terminal`, a simple, polished, efficient, cross-platform TUI implementation of the prototypical singleplayer game experience, and
+- `tetrs_engine`, a tetromino game engine implementing an abstract interface with modern mechanics.
 
 
 ## How to run
-*Pre-compiled:*
-- Download a release for your platform if available and run the application.
+> Pre-compiled.
+> - Download a release for your platform if available and run the application.
 
-*Compiling yourself:*
-- Have [Rust](https://www.rust-lang.org/) installed.
-- Download / `git clone` this repository.
-- Navigate to `tetrs_terminal/` and `cargo run`.
+> Compiling yourself.
+> - Have [Rust](https://www.rust-lang.org/) installed.
+> - Download / `git clone` this repository.
+> - Navigate to `tetrs_terminal/` and `cargo run`.
 
 > [!NOTE]
 > Use a terminal like [kitty](<https://sw.kovidgoyal.net/kitty/>) (or any terminal with [support for progressive keyboard enhancement](https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html)) for smooth gameplay **controls** and/or visual experience. 
@@ -103,7 +103,7 @@ loop {
 
 <details>
 
-<summary> Use tetrs_engine as a dependency with Cargo </summary>
+<summary> Using the engine in your rust project </summary>
 
 Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to your project:
 ```toml
@@ -112,11 +112,6 @@ tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
 ```
 
 </details>
-
-
-The engine at the time aims to be an interface to a feature-rich session of a singleplayer game.
-The goal was to strike a balance between interesting and useful game mechanics as present in modern games, yet leaving away all that "seems unnecessary".
-Rust, known for its performance and safety, proved to be an apt choice for this.
 
 <details>
 
@@ -207,6 +202,9 @@ Also see documentation (`cargo doc --open`).
 
 ## Project Highlights
 
+While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) served as good inspiration, I ended up having a lot of fun researching the variety of details of the game myself (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) and also by asking people (thank you GrBtAce and KonSola5!).
+The following detail various big and small concepts I tackled on my way to completing this game.
+
 
 ### Ocular Rotation System
 
@@ -215,8 +213,88 @@ TODO <!--https://youtu.be/6YhkkyXydNI?si=jbVwfNtfl5yFh9Gk&t=674-->
 
 ### Piece Locking
 
-TODO
+The mechanic of locking a piece tends to be more complicated than it sounds.
+My criteria for a good system are:
 
+1. Keeps the player from stalling / forces the player to make a choice eventually.
+2. Give the player enough flexibility to manipulate the piece even if it's on the ground.
+3. Force the player to react _faster_ on higher levels, as speed is supposed to increase.
+4. Implement all these limitations as naturally as possible.
+
+*Classic lock down* is simple, but if one decreases the lock timer (3.) then it becomes insanely difficult for the player to actually have enough time to do adjustments (2.).
+
+<details>
+
+<summary> Classic Lock Down </summary>
+
+- If the piece touches a surface
+  - start a lock timer of 500ms (\**var with lvl*).
+  - record the lowest y coordinate the piece has reached.
+- If the lock timer runs out, lock the piece immediately as soon as it touches the next surface.
+- If the piece falls below the previously lowest recorded y coordinate, reset lock timer.
+
+</details>
+
+*Infinite lock down* mitigates the flexibility issue by saying, *"if the player manipulated his piece, give him some more time"*. 
+It's very simple, but is disqualified due to breaking the make-a-decision-please-aspect of the game (1.) in the case where the player, well can't decide and keeps rotating his `T` piece forever.
+
+<details>
+
+<summary> Infinite Lock Down </summary>
+
+- If the piece touches a surface
+  - start a lock timer of 500ms (\**var with lvl*).
+- If the lock timer runs out, lock the piece immediately as soon as it touches the next surface.
+- If the piece moves/rotates (change in position), reset lock timer ('move reset').
+
+</details>
+
+The standard recommended by the guideline is therefore *extended placement lock down*.
+
+<details>
+
+<summary> Extended Placement Lock Down </summary>
+
+- If the piece touches a surface
+  - start a lock timer of 500ms (\**var with lvl*).
+  - start counting the number of moves/rotates the player makes.
+  - record the lowest y coordinate the piece has reached.
+- If the piece moves/rotates (change in position), reset lock timer ('move reset').
+- If the number of moves reaches 15, do not reset the lock timer anymore.
+- If the lock timer runs out, lock the piece immediately as soon as it touches the next surface.
+- If the piece falls below the previously lowest recorded y coordinate, reset counted number of moves.
+
+*(\*This probably misses a few edge cases, but you get the gist.)*
+
+</summary>
+
+Yeah.
+
+It's pretty flexible (2.) yet forces a decision (1.), but I dislike the 'count to 15 moves' part of this lock down (also, after the 15 moves run out you can still manipulate the piece till lock down), it just seems so arbitrary (4.).
+
+What if we limit the *total amount of time a piece may touch a surface* (1.) instead of number of moves/rotates (4.), though but at higher levels the piece *attempts* to lock down faster (3.), re-attempting later upon move/rotate; This still allows for plenty <sup>*\*technically arbitrarily many*</sup> piece manipulations (2.) while still fulfilling the other points :D
+
+<details>
+
+<summary> Timer Extended Placement Lock Down </summary>
+
+*Let 'ground time' denote the amount of time a piece touches a surface*
+
+- If the piece touches a surface
+  - start a lock timer of 500ms (\**var with lvl*).
+  - start measuring the ground time.
+  - record the lowest y coordinate the piece has reached.
+- If the piece moves/rotates (change in position), reset lock timer ('move reset').
+- If the lock timer runs out *or* the ground time reaches 2.25s, lock the piece immediately as soon as it touches the next surface.
+- If the piece falls below the previously lowest recorded y coordinate, reset the ground time.
+
+</summary>
+
+Although nice, it may *potentially* be abused by players keeping pieces in the air, only to occasionally touch down to reset the lock timer but hardly count any ground time (though this problem vanishes at high G anyway).
+
+A small fix for this is to check the last time the piece touched the ground, and if it's less than 2×(drop delay) ago, act as if the piece had been touching ground all along. This way the piece is guaranteed to be counted as "continuously on ground" with upward kicks ≤ 2.
+
+In the end, timer-based extended placement lockdown + ground continuity fix is what I used. I have yet to find a nicer system.
 
 ### Scoring
 
@@ -287,6 +365,8 @@ Quick research on the 'best' or 'most ergonomic' game keybinds was [inconclusive
 
 This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console), and the intricacies of the Game mechanics themselves (see [Features of the Tetrs Engine](#features-of-the-tetrs-engine)).
 
+Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate). I also spent time looking at the menu navigation of [Noita](https://noitagame.com/) to help me come up with my own.
+
 On the Rust side of things I learned about;
 - Some [coding](https://docs.kernel.org/rust/coding-guidelines.html) [style](https://doc.rust-lang.org/nightly/style-guide/) [guidelines](https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/style.md#getters--setters) & `cargo fmt` (~`#[rustfmt::skip]`~),
 - "[How to order Rust code](https://deterministic.space/how-to-order-rust-code.html)",
@@ -306,8 +386,8 @@ On the Rust side of things I learned about;
 - [cargo git dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories) so other people *could* reuse the backend,
 - and finally, [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases.
 
-Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate). I also spent time looking at the menu navigation of [Noita](https://noitagame.com/) to help me come up with my own.
+All in all, Rust, known for its performance and safety, proved to be an very good choice for this project.
 
-<sup>~~Lastly, I also found that there already *are*, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oops.~~</sup>
+<sup>~~PS: I'm aware there are, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oops~~</sup>
 
 *„Piecement Places.“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
