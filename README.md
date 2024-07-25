@@ -1,11 +1,14 @@
 <div align="center"><img width="440" src="https://repository-images.githubusercontent.com/816034047/9eba09ef-d6da-4b4c-9884-630e7f87e102" /></div>
 
 
-# Tetromino Game Engine + Playable Terminal Implementation
+# Tetromino Game Engine + Playable Terminal Application
 
-## Frontend: `tetrs_terminal`
+This repository contains
+- `tetrs_terminal`, a simple, polished, efficient, cross-platform TUI implementation of the prototypical game experience, and
+- `tetrs_engine`, an abstract tetromino engine implementing a game interface with modern mechanics.
 
-### How to run
+
+## How to run
 *Pre-compiled:*
 - Download a release for your platform if available and run the application.
 
@@ -15,77 +18,109 @@
 - Navigate to `tetrs_terminal/` and `cargo run`.
 
 > [!NOTE]
-> Use a terminal like [kitty](<https://sw.kovidgoyal.net/kitty/>) for smoothest gameplay and visual experience.
-> > *Explanation:* Terminals do not usually send "key released" signals, which is a problem for mechanics such as "press left to move left repeatedly **until key is released**". Crossterm automatically detects [kitty-protocol-compatible terminals](https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html) which solve issue. Otherwise DAS/ARR will be determined by Keyboard/OS/terminal emulator settings.)
+> Use a terminal like [kitty](<https://sw.kovidgoyal.net/kitty/>) (or any terminal with [support for progressive keyboard enhancement](https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html)) for smooth gameplay **controls** and/or visual experience. 
+> 
+> > <details>
+> > 
+> > <summary> Explanation. </summary>
+> > 
+> > Terminals do not usually send "key released" signals, which is a problem for mechanics such as "press left to move left repeatedly **until key is released**".
+> > [Crossterm](https://docs.rs/crossterm/latest/crossterm/) automatically detects ['kitty-protocol'-compatible terminals]([https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement)) where this issue is solved.
+> > Otherwise DAS/ARR will be determined by Keyboard/OS/terminal emulator settings.
+> > *(This also affects Soft Drop, which with kitty can be held with the piece hitting ground without immediately locking piece.)*
+> > 
+> > </details>
 
-### Features of the Terminal Game
+
+## Gallery
 
 <!--TODO: GIFs and screenshots.-->
 
-Implemented features:
-- **Gamemodes**:
-  - Marathon, Sprint, Ultra, Master, Endless.
-  - Puzzle Mode: Find all perfect clears through some [*Ocular Rotation System*](#ocular-rotation-system) piece acrobatics (one retry per puzzle stage).
-  - Custom Mode: level start, level increment, limit *(Time, Score, Pieces, Lines, Level; None)*.
-- **Gameplay**:
-  - Colored pieces (guideline).
-  - Next piece preview (N=1).
-  - Ghost piece.
-  - Animations for: Hard drops, Line clears and Piece locking.
-  - Current game stats: Level, Score, Lines, Time, Pieces generated.
-  - For technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
-- **Scoreboard** (stored to / loaded from local *tetrs_terminal_scores.json* if possible).
-- **Settings**:
-  - Adjustable render rate and toggleable FPS counter.
-  - Rotation systems: *Ocular*, *Classic* and *Super*.
-  - Configurable controls.
-    The game controls default to the following:
-    | Key | Action |
-    | -: | :-: |
-    | `A` | Rotate left |
-    | `D` | Rotate right |
-    | (not set) | Rotate around/180° |
-    | `←` | Move left |
-    | `→` | Move right |
-    | `↓` | Soft drop |
-    | `↑` | Hard drop |
-    | `Esc` | Pause game |
-    | `Ctrl`+`D` | Forfeit game |
-    | `Ctrl`+`C` | Exit program |
 
-## Backend: `tetrs_engine`
+## Features of the Application
 
-### Usage of the Tetrs Engine
+**Gamemodes**
+- Marathon, Sprint, Ultra, Master, Endless.
+- Puzzle Mode: Find all perfect clears through some [*Ocular Rotation System*](#ocular-rotation-system) piece acrobatics (one retry per puzzle stage).
+- Custom Mode: level start, level increment, limit *(Time, Score, Pieces, Lines, Level; None)*.
+
+**Gameplay**
+- Familiar game experience with moving, rotating, hard- and softdropping *tetrominos*.
+- Colored pieces (guideline).
+- Next piece preview (N=1).
+- Ghost piece.
+- Animations for: Hard drops, Line clears and Piece locking.
+- Current game stats: Level, Score, Lines, Time, Pieces generated.
+- For technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
+  
+**Scoreboard**
+- (stored to / loaded from local *tetrs_terminal_scores.json* if possible).
+  
+**Settings**
+- Toggleable graphics (colored Unicode <-> oldschool, monochrome ASCII).
+- Adjustable render rate and toggleable FPS counter.
+- Rotation systems: *Ocular*, *Classic* and *Super*.
+- Configurable controls.
+  <details>
+  
+  <summary> Default Game Controls </summary>
+  
+  | Key | Action |
+  | -: | :-: |
+  | `A` | Rotate left |
+  | `D` | Rotate right |
+  | (not set) | Rotate around/180° |
+  | `←` | Move left |
+  | `→` | Move right |
+  | `↓` | Soft drop |
+  | `↑` | Hard drop |
+  | `Esc` | Pause game |
+  | `Ctrl`+`D` | Forfeit game |
+  | `Ctrl`+`C` | Exit program |
+  
+   </details>
+
+
+## Features of the Tetrs Engine
+
+The frontend application is proof-of-concept;
+Ultimately the tetrs engine tries to be modular and shifts the responsibility of detecting player input and chosen time of updates to the client.
+Basic interaction with the engine could look like the following:
+
+```rust
+// Starting a game.
+let game = tetrs_engine::Game::with_gamemode(gamemode, time_started);
+// Application loop.
+loop {
+  // Updating the game with a new button state at a point in time.
+  game.update(Some(new_button_state), update_time);
+  // Updating the game with *no* change in button state (since the last).
+  game.update(None, update_time_2);
+  // Retrieving the game state (to render the board, active piece, next pieces, etc.).
+  let GameState { board, .. } = game.state();
+}
+```
+
+<details>
+
+<summary> Use tetrs_engine as a dependency with Cargo </summary>
+
 Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to your project:
 ```toml
 [dependencies]
 tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
 ```
 
-The tetrs engine is kept modular in that it shifts the responsibility of detecting player input and chosen time to update to the user of the engine.
-Basic interaction with the engine could look like the following:
-```rust
-// Starting a game.
-let game = tetrs_engine::Game::with_gamemode(gamemode, time_started);
+</details>
 
-// Updating the game with a new button state at a point in time.
-game.update(Some(new_button_state), update_time);
-// Updating the game with *no* change in button state (since the last).
-game.update(None, update_time_2);
-
-// Retrieving the game state (to render the board, active piece, next pieces, etc.).
-let GameState { board, .. } = game.state();
-```
-
-For more info see crate documentation (`cargo doc --open`).
-
-### Features of the Tetrs Engine
 
 The engine at the time aims to be an interface to a feature-rich session of a singleplayer game.
 The goal was to strike a balance between interesting and useful game mechanics as present in modern games, yet leaving away all that "seems unnecessary".
-Rust, renowned for its performance and safety, proved to be a good choice for this.
+Rust, known for its performance and safety, proved to be an apt choice for this.
 
-#### Game Configuration
+<details>
+
+<summary> Game Configuration Aspects </summary>
 
 - Gamemodes: Marathon, Sprint, Ultra, Master; Custom, given a playing limit, start lvl, whether to increment level.
 - Rotation Systems: *Ocular Rotation System*, *Classic Rotation System*, *Super Rotation System*.
@@ -102,7 +137,11 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 - Drop delay (1000ms at lvl 1 to 0.833ms ("20G") at lvl 19).
 - 'Timer' variant of Extended Placement Lockdown (step reset); The piece tries to lock every 500ms at lvl 19 to every 150ms at lvl 30, and any given piece may only touch ground for 2250ms in total. See also [Piece Locking](#piece-locking).
 
-#### Game State
+</details>
+
+<details>
+
+<summary> Game State Aspects </summary>
 
 - Time: Game time is held abstract as "time elapsed since game started" and is not directly tied to real-world timestamps.
 - Game finish: The game knows if it finished, and if session was won or lost. Game Over scenarios are:
@@ -115,8 +154,12 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 - Next Pieces: Are kept in a queue and can be viewed.
 - Pieces played so far: Kept as a stat.
 - Lines cleared: <sup>yeah</sup>
-- Level: Increases every 10 line clears. and speed curve
-- Scoring: Only line clears award a score bonus, which is given by the formula:
+- (Speed) Level: Increases every 10 line clears and influences only drop/lock delay.
+- Scoring: Line clears trigger a score bonus, which takes into account number of lines cleared, spins, combos, back-to-backs.
+  <details>
+  
+  <summary>Scoring Details</summary>
+  
   ```haskell
   score_bonus = 10
               * (lines ^ 2)
@@ -145,25 +188,103 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
   | +160 | ?-Spin Double |
   | +360 | ?-Spin Triple |
 
-#### Feedback Events
+  </details>
+  
+</details>
 
-The game provides some useful feedback events upon every `update`, usually used for frontend effects:
+
+<details>
+
+<summary> Game Feedback Aspects </summary>
+
+The game provides some useful feedback events upon every `update`, usually used to correctly implement visual effects:
 - *Piece locked down*, *Lines cleared*, *Hard drop*, *Accolade* (score bonus info), *Message* (generic message, currently unused)
 
-## Selection of Project Highlights
+</details>
+
+Also see documentation (`cargo doc --open`).
+
+
+## Project Highlights
+
+
+### Ocular Rotation System
+
+TODO <!--https://youtu.be/6YhkkyXydNI?si=jbVwfNtfl5yFh9Gk&t=674-->
+
+
+### Piece Locking
+
 TODO
 
-#### Ocular Rotation System
-TODO
 
-#### Piece Locking
-TODO
-
-#### Scoring
+### Scoring
 
 Coming up with a good score system is tough, and experience and playtesting helps, so the one I come up with probably sucks ("how many points should a 'perfect clear' receive?"). Even so, I went along and experimented, since I liked the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists).
 
-## Author Notes
+
+### Gamemodes
+
+Initially a lot of architectural decisions were not clear; as such the question *what is the goal of this game?*
+My findings were:
+- There are several game stats one can keep track of, and
+- Canonical / commonly found gamemodes can be approximated as a combination of `(stat which is limited so game can complete) + (stat which player aims to optimize)`.
+Examples:
+- *'Marathon':* limit Level to 20, try for highest score.
+- *'Sprint'* / *'40 lines'*: limit lines to 40, try for lowest time.
+- *'Ultra'* / *'Time Trial'*: limit time to 2-3min, try for highest score / most lines.
+The real implementation additionally stores the (speed) level to start at, and whether clearing lines increments the level.
+> [!NOTE]
+> Given one stat, how do we know whether we want to maximize or minimize another arbitrary stat?
+> I may be overlooking a simpler pattern, but it seems one can order all stats linearly, and given a stat to be fixed/limited, any other stat is maximized/minimized directly depending on whether it's further down/up the sequence:
+> <details>
+> 
+> <summary>Gamemode Stat Relation Table</summary>
+> 
+> | name | finss | time  | piecs | lines | level | score |
+> | ---- | ----- | ----- | ----- | ----- | ----- | ----- |
+> |      |  fix  |  MAX  |       |       |       |
+> |      |       |       |  MAX  |       |       |
+> |      |  fix  |       |       |  MAX  |       |
+> |      |  fix  |       |       |       |  MAX  |
+> |      |  fix  |       |       |       |       |  MAX
+> |      |  MIN  |  fix  |       |       |       |
+> |      |       |  fix  |  MAX  |       |       |
+> | *'Ultra*' |  |  fix  |       |  MAX  |       |
+> |      |       |  fix  |       |       |  MAX  |
+> |      |       |  fix  |       |       |       |  MAX
+> |      |  MIN  |       |  fix  |       |       |
+> |      |       |  MIN  |  fix  |       |       |
+> |      |       |       |  fix  |  MAX  |       |
+> |      |       |       |  fix  |       |  MAX  |
+> |      |       |       |  fix  |       |       |  MAX
+> |      |  MIN  |       |       |  fix  |       |
+> | *'Sprint'* | |  MIN  |       |  fix  |       |
+> |      |       |       |  MIN  |  fix  |       |
+> |      |       |       |       |  fix  |  MAX  |
+> |      |       |       |       |  fix  |       |  MAX
+> |      |  MIN  |       |       |       |  fix  |
+> |      |       |  MIN  |       |       |  fix  |
+> |      |       |       |  MIN  |       |  fix  |
+> |      |       |       |       |  MIN  |  fix  |
+> | *'Marathon'* | |     |       |       |  fix  |  MAX
+> |      |  MIN  |       |       |       |       |  fix
+> |      |       |  MIN  |       |       |       |  fix
+> |      |       |       |  MIN  |       |       |  fix
+> |      |       |       |       |  MIN  |       |  fix
+> |      |       |       |       |       |  MIN  |  fix
+> 
+> </details>
+
+
+> So how does 'Puzzle Mode' work? - I can tell you how: with a pinch of state modeling jank and some not-so-secret internal state leakage via `Game::set_modifier`.
+
+### Controls
+
+Quick research on the 'best' or 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809). Upon sampling a few dozen on reddit posts it seems a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**. "Choose what feels best for you" some said - they're probably right. *(\*Even so, one should *not* hammer the spacebar for hard drops, the only button guideline suggests.)*
+
+### Miscellaneous Author Notes
+
 This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console), and the intricacies of the Game mechanics themselves (see [Features of the Tetrs Engine](#features-of-the-tetrs-engine)).
 
 On the Rust side of things I learned about;
