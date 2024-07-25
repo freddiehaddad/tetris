@@ -922,7 +922,7 @@ impl Game {
                     let score_bonus = 10 // NOTE: We do not currently use `(10 + self.level.get() - 1)`.
                         * n_lines_cleared
                         * n_tiles_used
-                        * if spin { 2 } else { 1 }
+                        * if spin { 3 } else { 1 } // TODO: Scoring.
                         * if perfect_clear { 10 } else { 1 }
                         * self.state.consecutive_line_clears;
                     self.state.score += score_bonus;
