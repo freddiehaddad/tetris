@@ -40,9 +40,11 @@ This repository hosts:
 ## Features of the Application
 
 **Gamemodes**
-- Marathon, Sprint, Ultra, Master, Endless.
-- Puzzle Mode: Find all perfect clears through some [*'ocular' rotation system*](#ocular-rotation-system) piece acrobatics (with one retry per puzzle stage).
-- Custom Mode: level start, level increment, stat limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
+- Marathon (reach lvl 20), 40-Lines, Time Trial, Master (20G), Endless.
+- Puzzle Mode
+  - Find all perfect clears through some [*'ocular' rotation system*](#ocular-rotation-system) piece acrobatics (with one retry per puzzle stage).
+- Custom Mode
+  - Start level start, toggle level increment, game limit *(Time, Score, Pieces, Lines, Level, or None)*.
 
 **Gameplay**
 - Familiar game experience with moving, rotating, hard- and softdropping *tetrominos*.
@@ -57,7 +59,7 @@ This repository hosts:
 - (stored to / loaded from local *tetrs_terminal_scores.json* if possible).
   
 **Settings**
-- Toggleable graphics (colored Unicode <-> oldschool, monochrome ASCII).
+- Tile graphics (colored Unicode <-> oldschool, monochrome ASCII).
 - Adjustable render rate and toggleable FPS counter.
 - Rotation systems: *Ocular*, *Classic* and *Super*.
 - Configurable controls.
@@ -208,6 +210,31 @@ While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) served a
 In the following I detail various interesting concepts I tackled on my way to completing this game.
 
 
+### Tetromino Generation
+
+[Tetromino generators are interesting](https://simon.lc/the-history-of-tetris-randomizers), and a core part of the game.
+
+A trivial generator chooses tetrominos *uniformly at random*.
+This already works decent for a playable game.
+
+However, typically players tend to get very frustrated when they don't get "the pieces they need" for a while.
+*(\*There's even a term for not getting an `I`-piece for an extended period of time: Drought.)*
+
+In modern games, the *bag-based generation system* is ubiquitous;
+The system simply takes all 7 pieces once, hands them out in random order, repeat.
+
+It's quite nice knowing an `I` piece will come after 12 pieces, every time. One may even start strategizing and counting where one bag ends and the next starts.
+
+It also takes a bit of the "fun" out of the randomness.
+
+An alternative that seems to work well is *recency-based generation*:
+Remember the last time each piece was generated and when choosing the next one randomly, do so weighted by when each one was last seen so it is more likely to choose a piece not played in a while.
+
+This preserves "possibly complete randomness" in the sense that *any* piece may be generated at any time, while still mitigating droughts.
+
+Unlike bag it possibly provides a more continuous "gut feeling" of what piece(s) might come next, where in bag the order upon refill really *is* completely random.
+
+
 ### Ocular Rotation System
 
 > "[tetris has a great rotation system and is not flawed at all](https://www.youtube.com/watch?v=_qaEknA81Iw)"
@@ -267,31 +294,6 @@ In the end I'm happy with how this custom rotation system turned out.
 
 On the fun side, *Puzzle Mode* in the frontend application is intended to show off some of the spins possible with this system.
 You should try it out; I somehow still managed to include a (decently sensible) *T-Spin Triple!*
-
-
-### Tetromino Generation
-
-[Tetromino generators are interesting](https://simon.lc/the-history-of-tetris-randomizers), and a core part of the game.
-
-A trivial generator chooses tetrominos *uniformly at random*.
-This already works decent for a playable game.
-
-However, typically players tend to get very frustrated when they don't get "the pieces they need" for a while.
-*(\*There's even a term for not getting an `I`-piece for an extended period of time: Drought.)*
-
-In modern games, the *bag-based generation system* is ubiquitous;
-The system simply takes all 7 pieces once, hands them out in random order, repeat.
-
-It's quite nice knowing an `I` piece will come after 12 pieces, every time. One may even start strategizing and counting where one bag ends and the next starts.
-
-It also takes a bit of the "fun" out of the randomness.
-
-An alternative that seems to work well is *recency-based generation*:
-Remember the last time each piece was generated and when choosing the next one randomly, do so weighted by when each one was last seen so it is more likely to choose a piece not played in a while.
-
-This preserves "possibly complete randomness" in the sense that *any* piece may be generated at any time, while still mitigating droughts.
-
-Unlike bag it possibly provides a more continuous "gut feeling" of what piece(s) might come next, where in bag the order upon refill really *is* completely random.
 
 
 ### Piece Locking
