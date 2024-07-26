@@ -34,7 +34,11 @@ This repository hosts:
 
 ## Gallery
 
-![Animated Demo of Tetrs](Gallery/tetrs_rec-02.gif)
+![Animated Demo of Tetrs](Gallery/tetrs_rec-main.gif)
+
+![Animated Demo of Tetrs' ASCII graphics](Gallery/tetrs_rec-ascii.gif)
+
+![Animated Demo of Tetrs' Puzzle Mode](Gallery/tetrs_rec-puzzle.gif)
 
 
 ## Features of the Application
