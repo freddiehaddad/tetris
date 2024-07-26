@@ -42,8 +42,6 @@
 
 *Smooth rendering on all platforms, configurable controls and more:*
 
-![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
-
 *ASCII graphics available:*
 
 <details>
@@ -54,11 +52,10 @@
 
 </details>
 
-*Puzzle Mode with its 26 levels, can you get the T-Spin Triple?:*
-
+![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
 
 > [!TIP]
-> Try **Puzzle Mode** with its 26 short stages to play with the the special [*'ocular' rotation system*](#ocular-rotation-system)!
+> Try **Puzzle Mode** with its 26 short stages to play with the the special ['ocular' rotation system](#ocular-rotation-system) *(feat. T-spin Triple)*!
 > 
 > <details>
 > 
