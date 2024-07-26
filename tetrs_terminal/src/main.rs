@@ -12,8 +12,8 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 struct Args {
     /// The framerate at which to run the main game.
-    #[arg(short, long, default_value_t = 30)]
-    fps: u32,
+    #[arg(short, long)]
+    fps: Option<u32>,
 }
 
 fn main() -> Result<(), io::Error> {

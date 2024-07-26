@@ -101,6 +101,7 @@ pub struct Settings {
     pub show_fps: bool,
     pub ascii_graphics: bool,
     pub rotation_system: RotationSystem,
+    pub no_soft_drop_lock: bool,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -137,7 +138,7 @@ impl<T: Write> App<T> {
     pub const H_MAIN: u16 = 24;
     pub const SAVE_FILE: &'static str = "./tetrs_terminal.json";
 
-    pub fn new(mut terminal: T, fps: u32) -> Self {
+    pub fn new(mut terminal: T, fps: Option<u32>) -> Self {
         // Console prologue: Initializion.
         // TODO: Handle errors?
         let _ = terminal.execute(terminal::EnterAlternateScreen);
@@ -161,10 +162,11 @@ impl<T: Write> App<T> {
         ]);
         let settings = Settings {
             keybinds,
-            game_fps: fps.into(),
+            game_fps: 30.0,
             show_fps: false,
             ascii_graphics: false,
             rotation_system: RotationSystem::Ocular,
+            no_soft_drop_lock: !kitty_enabled,
         };
         let custom_mode = Gamemode::custom(
             "Custom Mode".to_string(),
@@ -176,14 +178,20 @@ impl<T: Write> App<T> {
         let mut app = Self {
             term: terminal,
             settings,
-            kitty_enabled,
             custom_mode,
             games_finished: vec![],
+            kitty_enabled,
         };
         if let Err(_e) = app.load_local() {
             // TODO: Make this debuggable.
             //eprintln!("Could not loading settings: {e}");
             //std::thread::sleep(Duration::from_secs(5));
+        }
+        if let Some(game_fps) = fps {
+            app.settings.game_fps = game_fps.into();
+        }
+        if !kitty_enabled {
+            app.settings.no_soft_drop_lock = true;
         }
         app
     }
@@ -565,6 +573,7 @@ impl<T: Write> App<T> {
                         Game::with_gamemode(preset_gamemodes.into_iter().nth(selected).unwrap())
                     };
                     game.config_mut().rotation_system = self.settings.rotation_system;
+                    game.config_mut().no_soft_drop_lock = self.settings.no_soft_drop_lock;
                     let now = Instant::now();
                     break Ok(MenuUpdate::Push(Menu::Game {
                         game: Box::new(game),
@@ -1117,7 +1126,7 @@ impl<T: Write> App<T> {
     }
 
     fn settings(&mut self) -> io::Result<MenuUpdate> {
-        let selection_len = 5;
+        let selection_len = 6;
         let mut selected = 0usize;
         loop {
             let w_main = Self::W_MAIN.into();
@@ -1132,16 +1141,18 @@ impl<T: Write> App<T> {
             let labels = [
                 "Configure Controls".to_string(),
                 format!(
-                    "Graphics: {}",
+                    "Graphics: {}.",
                     if self.settings.ascii_graphics {
                         "ASCII"
                     } else {
                         "Unicode"
                     }
                 ),
-                format!("Framerate: {}", self.settings.game_fps),
-                format!("Show FPS: {}", self.settings.show_fps),
-                format!("Rotation System: '{:?}'", self.settings.rotation_system),
+                format!("Framerate: {}.", self.settings.game_fps),
+                format!("Show FPS: {}.", self.settings.show_fps),
+                format!("Rotation System: '{:?}'.", self.settings.rotation_system),
+                format!("No soft drop lock: {} (autoenabled if no key enhance).", self.settings.no_soft_drop_lock),
+                format!("Keyboard enhancements available: {}.", self.kitty_enabled),
             ];
             for (i, label) in labels.into_iter().enumerate() {
                 self.term
@@ -1230,7 +1241,10 @@ impl<T: Write> App<T> {
                             RotationSystem::Ocular => RotationSystem::Classic,
                             RotationSystem::Classic => RotationSystem::Super,
                             RotationSystem::Super => RotationSystem::Ocular,
-                        };
+                        }
+                    }
+                    5 => {
+                        self.settings.no_soft_drop_lock = !self.settings.no_soft_drop_lock;
                     }
                     _ => unreachable!(),
                 },
@@ -1254,6 +1268,9 @@ impl<T: Write> App<T> {
                             RotationSystem::Classic => RotationSystem::Ocular,
                             RotationSystem::Super => RotationSystem::Classic,
                         };
+                    }
+                    5 => {
+                        self.settings.no_soft_drop_lock = !self.settings.no_soft_drop_lock;
                     }
                     _ => unreachable!(),
                 },
