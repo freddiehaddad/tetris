@@ -68,7 +68,7 @@
 > </details>
 
 
-## Features of the Application
+# Features of the Application
 
 ### Gamemodes
 - 'Marathon' (reach lvl 20) - 'Sprint' (40-Lines) - 'Ultra' (Time Trial) - Master (20G).
@@ -118,7 +118,7 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
 \*Note that settings and game history are stored to / loaded from a local *tetrs_terminal.json* file if possible (generated in the folder where `tetrs_terminal` is executed).
 
 
-## Features of the Tetrs Engine
+# Features of the Tetrs Engine
 
 The frontend application is proof-of-concept;
 Ultimately the tetrs engine tries to be modular and shifts the responsibility of detecting player input and chosen time of updates to the client.
@@ -210,14 +210,14 @@ The game provides some useful feedback events upon every `update`, usually used 
 <!--TODO: "Also see documentation (`cargo doc --open`)."-->
 
 
-## Project Highlights
+# Project Highlights
 
 While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) serves as good inspiration, I ended up doing a lot of amateur research into a variety of game details (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) as they stand in the modern community, and also asking people about the game. Thank you GrBtAce and KonSola5!
 
 In the following I detail various interesting concepts I tackled on my way to bringing this project to life.
 
 
-### Tetromino Generation
+## Tetromino Generation
 
 [Tetromino generators are interesting](https://simon.lc/the-history-of-tetris-randomizers), and a core part of the game.
 
@@ -242,7 +242,7 @@ This preserves "possibly complete randomness" in the sense that *any* piece may 
 Unlike bag it possibly provides a more continuous "gut feeling" of what piece(s) might come next, where in bag the order upon refill really *is* completely random.
 
 
-### Ocular Rotation System
+## Ocular Rotation System
 
 > "[tetris has a great rotation system and is not flawed at all](https://www.youtube.com/watch?v=_qaEknA81Iw)"
 
@@ -303,7 +303,7 @@ On the fun side, *Puzzle Mode* in the frontend application is intended to show o
 You should try it out; I somehow still managed to include a (decently sensible) *T-Spin Triple!*
 
 
-### Piece Locking
+## Piece Locking
 
 The mechanic of locking a piece tends to be more complicated than it sounds.
 
@@ -402,7 +402,7 @@ A small patch for this is to check the last time the piece touched the ground, a
 In the end, a timer-based extended placement lockdown (+ ground continuity fix) is what I used. I have yet to find a nicer system.
 
 
-### Gamemodes
+## Gamemodes
 
 One game modeling question that came up early on was, *"what even is the goal of this game?"*
 
@@ -464,7 +464,7 @@ The real implementation additionally stores the (speed) level to start at, and w
 > *Wait, so how does 'Puzzle Mode' work?* - I can tell you: with some not-so-secret internal state leakage and a large pinch of state modeling jank via [`Game::set_modifier(...)`](tetrs_terminal/src/puzzle_mode.rs).
 
 
-### Scoring
+## Scoring
 
 The exact scoring formula is given by the following:
   <details>
@@ -509,7 +509,7 @@ The one I came up with, put mildly, *probably sucks*.
 But I still allowed myself to experiment, because I really liked the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists) (and don't understand modern Tetris' obession with T-spins when L and J spins are also so satisfying).
 
 
-### Controls
+## Controls
 
 A search for the 'best' / 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809).
 In a sample a few dozen opinions on reddit posts there was a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**, respectively.
@@ -517,7 +517,7 @@ In a sample a few dozen opinions on reddit posts there was a 50/50 split on `←
 *(\*though some mentioned one should **not** hammer ` spacebar ` for hard drops, the only button the Guideline suggests for this action.)*
 
 
-### Menu Navigation
+## Menu Navigation
 
 Modeling how the TUI should handle menus and move between them very unclear initially.
 Luckily, I was able to look at how [Noita](https://noitagame.com/)'s menus are connected and saw that it was quite structured:
@@ -532,7 +532,7 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 </details>
 
 
-### Miscellaneous Author Notes
+## Miscellaneous Author Notes
 
 This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console no less), and the intricacies of most important tetrs mechanics themselves.
 
@@ -562,11 +562,12 @@ On the Rust side of things I learned about;
 
 All in all, Rust, known for its safety and performance - while still having high-level constructs like abstract datatypes (my beloved) - proved to be an excellent choice for this project.
 
+Also, I'd like to appreciate how nice the name *tetrs* fits for a Rust game that does not infringe on copyright <sup>~~though there are, like, a quadrillion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, ooof~~</sup>.
+
 For the terminal GIF recordings I used [asciinema](https://asciinema.org/) + [agg](https://github.com/asciinema/agg):
 ```bash
 agg --font-family="DejaVu Sans Mono" --line-height=1.17 --renderer=resvg --font-size=20, --fps-cap=30 --last-frame-duration=0  my_rec.cast my_rec.gif
 ```
 
-<sup>~~PS: Wow there are, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oof~~</sup>
 
-*„Piecement Places.“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
+*„Piecement Places!“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
