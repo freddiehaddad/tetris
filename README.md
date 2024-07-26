@@ -34,7 +34,7 @@ This repository hosts:
 
 ## Gallery
 
-<!--TODO: GIFs and screenshots.-->
+![Animated Demo of Tetrs](Gallery/tetrs_rec-01.gif)
 
 
 ## Features of the Application
