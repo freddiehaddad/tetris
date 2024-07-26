@@ -41,8 +41,8 @@ This repository hosts:
 
 **Gamemodes**
 - Marathon, Sprint, Ultra, Master, Endless.
-- Puzzle Mode: Find all perfect clears through some [*Ocular Rotation System*](#ocular-rotation-system) piece acrobatics (one retry per puzzle stage).
-- Custom Mode: level start, level increment, limit *(Time, Score, Pieces, Lines, Level; None)*.
+- Puzzle Mode: Find all perfect clears through some [*'ocular' rotation system*](#ocular-rotation-system) piece acrobatics (with one retry per puzzle stage).
+- Custom Mode: level start, level increment, stat limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
 
 **Gameplay**
 - Familiar game experience with moving, rotating, hard- and softdropping *tetrominos*.
@@ -106,6 +106,7 @@ loop {
 <summary> Using the engine in your rust project </summary>
 
 Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to your project:
+
 ```toml
 [dependencies]
 tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
@@ -153,7 +154,7 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 - Scoring: Line clears trigger a score bonus, which takes into account number of lines cleared, spins, combos, back-to-backs.
   <details>
   
-  <summary>Scoring Details</summary>
+  <summary>Scoring Details and Formula</summary>
   
   ```haskell
   score_bonus = 10
@@ -203,34 +204,41 @@ Also see documentation (`cargo doc --open`).
 ## Project Highlights
 
 While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) served as good inspiration, I ended up having a lot of fun researching the variety of details of the game myself (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) and also by asking people (thank you GrBtAce and KonSola5!).
-The following detail various big and small concepts I tackled on my way to completing this game.
+
+In the following I detail various interesting concepts I tackled on my way to completing this game.
 
 
 ### Ocular Rotation System
 
 > "[tetris has a great rotation system and is not flawed at all](https://www.youtube.com/watch?v=_qaEknA81Iw)"
 
-— *[said no one ever, not even the creator of Tetris himself](https://youtu.be/6YhkkyXydNI?si=jbVwfNtfl5yFh9Gk&t=674).*
+— *said no one ever, not even [the creator of Tetris himself](https://youtu.be/6YhkkyXydNI?si=jbVwfNtfl5yFh9Gk&t=674).*
 
-To be fair, donsidering the huge franchise and range of players coming from all sorts of niches and previous game version the *"Super Rotation System"* [gets its job done](https://www.youtube.com/watch?v=dgt1kWq2_7c)™.
+Considering the sheer size of the franchise and range of players coming from all sorts of niches and previous game version the *"Super Rotation System"* [gets its job done](https://www.youtube.com/watch?v=dgt1kWq2_7c)™, but it does not change the fact that it was *the* mechanic I thought about redoing when thinking about this project.
 
-But this doesn't change the fact that it was *the* mechanic I thought about revamping when thinking about starting this project:
+<details>
 
-- The system is **not** symmetric:
+<summary> Creating a Rotation System ... </summary>
+
+To summarize, my personal problems with SRS were:
+
+- The system is not symmetric.
   - Symmetric pieces can look exactly the same in different rotation states, **[but have different behaviour](https://blog.battlefy.com/how-accidental-complexity-harms-the-tetris-community-93311461b2af)**.
   - Doing rotation, then Mirroring board and piece **≠** Mirroring board and piece, then Doing mirrored rotation.
-- 'Piece elevators' exist (\*though I don't know how to disprove the existence of such in any given rotation system with kicks.)
 - It's an [advanced system](https://harddrop.com/wiki/SRS) with things like different rotation points for different purposes, yet it re-uses the *exact same kicks* for 5 out of the 7 pieces, even though they have completely different symmetries.
-- Not a hot take, but some rotations are just *weird* (to be chosen over other possibilities).
+- <sup>Not a hot take, but some rotations are just *weird* (to be chosen over other possibilities).</sup>
+- Piece elevators.
 
-My criteria for a good rotation system thus would be:
+Good criteria for a rotation system I can think of would be:
 
-1. Symmetric if the board and piece were mirrored.
+1. Symmetric rotations if the board and piece were appropriately mirrored.
 2. Equal-looking states must have the same behaviour.
-3. Don't overdo it with crazy kicks
-4. But still allow fun things
+3. "Don't overdo it with crazy kicks".
+4. (But still allow fun things).
 
-The result of this was the *Ocular Rotation System*, which I made by... looking at each piece orientation and drawing the most visually sensible positions for a piece to land in after a rotation. By overlapping all the kicks that are test in sequential order, one gets a compact heatmap of where the piece will land, going from hottest color (bright yellow) to coldest (dark purple):
+The result of this was the *'Ocular' Rotation System*, which was made by... *looking* at each piece orientation and drawing the most *visually* sensible position(s) for it to land in after rotating.
+
+By overlapping all the kicks that are test in sequential order, one gets a compact heatmap of where the piece will land, going from hottest color (bright yellow) to coldest (dark purple):
 
 <details>
 
@@ -240,7 +248,7 @@ The result of this was the *Ocular Rotation System*, which I made by... looking 
 
 </details>
 
-Now compare this to SRS and the difference is clear:
+Comparison with SRS:
 
 <details>
 
@@ -250,45 +258,60 @@ Now compare this to SRS and the difference is clear:
 
 </details>
 
-Although, one starts to see the vague rotational symmetries here.
+Although one starts to spot vague rotational symmetries as intended), the kicks are "all over the place" and have very lenient vertical range.
+
+</details>
+
+In the end I'm happy with how this custom rotation system turned out.
+*(\*E.g. it uses piece symmetries to store only half the kicks.*
+
+On the fun side, *Puzzle Mode* in the frontend application is intended to show off some of the spins possible with this system.
+You should try it out; I somehow still managed to include a (decently sensible) *T-Spin Triple!*
 
 
 ### Tetromino Generation
 
-Tetromino generation is at the heart of the game.
+[Tetromino generators are interesting](https://simon.lc/the-history-of-tetris-randomizers), and a core part of the game.
 
-A trivial generator chooses tetrominos *uniformly at random*, and this actually already works decent.
-But players tend to get frustrated when they don't get the pieces they need for a long time: there's even a name for not getting an `I`-piece for a long time: *Droughts*.
+A trivial generator chooses tetrominos *uniformly at random*.
+This already works decent for a playable game.
 
-The modern *bag-based generation system* is standard and simply takes all 7 pieces once, gives them out in random order, repeat.
-It's quite nice knowing an `I` piece will come after 12 pieces, every time. You can even start strategizing quite deterministically by counting where one bag ends and the next starts.
+However, typically players tend to get very frustrated when they don't get "the pieces they need" for a while.
+*(\*There's even a term for not getting an `I`-piece for an extended period of time: Drought.)*
 
-But to me it takes the fun out of the randomness, *somehow*; Maybe we can take uniform random generation and just tweak it a little so it doesn't have droughts anymore?
+In modern games, the *bag-based generation system* is ubiquitous;
+The system simply takes all 7 pieces once, hands them out in random order, repeat.
 
-Presenting *recency-based generation system*: It remembers the last time it generated each piece and chooses the next piece randomly, but weighted by last seen so it more likely chooses pieces not seen in a while.
+It's quite nice knowing an `I` piece will come after 12 pieces, every time. One may even start strategizing and counting where one bag ends and the next starts.
 
-This preserves "possibly complete randomness" (*any* piece may be generated at any time), but *precisely* mitigating droughts.
+It also takes a bit of the "fun" out of the randomness.
 
-One could make a point that it's even more handy than bag in *certain* ways: The player can have a mental image of the _order_ in which the next or next few pieces might appear. In bag, with each new refill the order within *is* completely random (although I'm aware this does not matter for games that have 6 piece preview and standard 7-bag).
+An alternative that seems to work well is *recency-based generation*:
+Remember the last time each piece was generated and when choosing the next one randomly, do so weighted by when each one was last seen so it is more likely to choose a piece not played in a while.
+
+This preserves "possibly complete randomness" in the sense that *any* piece may be generated at any time, while still mitigating droughts.
+
+Unlike bag it possibly provides a more continuous "gut feeling" of what piece(s) might come next, where in bag the order upon refill really *is* completely random.
 
 
 ### Piece Locking
 
 The mechanic of locking a piece tends to be more complicated than it sounds.
-My criteria for a good locking system are:
 
-1. Keeps the player from stalling / forces the player to make a choice eventually.
-2. Give the player enough flexibility to manipulate the piece even if it's on the ground.
-3. Force the player to react _faster_ on higher levels, as speed is supposed to increase.
-4. Implement all these limitations as naturally and/or simply as possible.
+Good criteria for a locking system I can think of would be:
 
-So I started researching and thinking about the locking system to use.
+1. Keep players from stalling / force players to make a choice eventually.
+2. Give players enough flexibility to manipulate the piece even if it's on the ground.
+3. Force players to *react/input faster* on higher levels, as speed is supposed to increase.
+4. Implement all these limitations as naturally/simply as possible.
+
+I started researching and deciding which locking system to use.
 
 <details>
 
 <summary> Piece Locking ... </summary>
 
-*Classic lock down* is simple, but if one decreases the lock timer (3.) then it becomes insanely difficult for the player to actually have enough time to do adjustments (2.).
+*Classic lock down* is simple, but if one decreases the lock timer at higher levels (3.) then it might become exceedingly difficult for players to actually have enough time to do adjustments (2.).
 
 <details>
 
@@ -302,8 +325,8 @@ So I started researching and thinking about the locking system to use.
 
 </details>
 
-*Infinite lock down* mitigates the flexibility issue by saying, *"if the player manipulated his piece, give him some more time"*. 
-It's very simple, but is disqualified due to breaking the make-a-decision-please-aspect of the game (1.) in the case where the player, well can't decide and keeps rotating his `T` piece forever.
+*Infinite lock down* essentially mitigates the flexibility issue by saying, *"if the player manipulated his piece, give him some more time"*. 
+It's very simple, but the fact that it lets players stall forever (1.) is less nice.
 
 <details>
 
@@ -337,9 +360,12 @@ The standard recommended by the guideline is therefore *extended placement lock 
 
 Yeah.
 
-It's pretty flexible (2.) yet forces a decision (1.), but I dislike the 'count to 15 moves' part of this lock down (also, after the 15 moves run out you can still manipulate the piece till lock down), it just seems so arbitrary (4.).
+It's pretty flexible (2.) yet forces a decision (1.), but the 'count to 15 moves' part of this lock down seems somewhat arbitrary (4.)
+<sup>*(\*Also note that after the 15 moves run out one can still manipulate the piece till lock down.)*</sup>
 
-What if we limit the *total amount of time a piece may touch a surface* (1.) instead of number of moves/rotates (4.), though but at higher levels the piece *attempts* to lock down faster (3.), re-attempting later upon move/rotate; This still allows for plenty <sup>*\*technically arbitrarily many*</sup> piece manipulations (2.) while still fulfilling the other points :D
+> **Idea.**
+> What if we limit the *total amount of time a piece may touch a surface* (1.) instead of number of moves/rotates (4.), though but at higher levels the piece *attempts* to lock down faster (3.), re-attempting later upon move/rotate;
+> This still allows for plenty <sup>*\*technically arbitrarily many*</sup> piece manipulations (2.) while still fulfilling the other points :D
 
 <details>
 
@@ -357,9 +383,10 @@ What if we limit the *total amount of time a piece may touch a surface* (1.) ins
 
 </details>
 
-Although nice, it may *potentially* be abused by players keeping pieces in the air, only to occasionally touch down to reset the lock timer but hardly count any ground time (though this problem vanishes at high G anyway).
+Nice.
+Although now it *may potentially* be abused by players which keep pieces in the air, only to occasionally touch down and reset the lock timer while hardly adding any ground time (note that this problem vanishes at 20G).
 
-A small fix for this is to check the last time the piece touched the ground, and if it's less than 2×(drop delay) ago, act as if the piece had been touching ground all along. This way the piece is guaranteed to be counted as "continuously on ground" with upward kicks ≤ 2.
+A small patch for this is to check the last time the piece touched the ground, and if that was, say, less than 2×(drop delay) ago, then act as if the piece had been touching ground all along. This way the piece is guaranteed to be counted as "continuously on ground" even with fast upward kicks of height ≤ 2.
 
 </details>
 
@@ -368,15 +395,21 @@ In the end, a timer-based extended placement lockdown (+ ground continuity fix) 
 
 ### Gamemodes
 
-Initially a lot of architectural decisions were not clear; as such the question *what is the goal of this game?*
-My findings were:
+One game modeling question that came up early on was, *"what even is the goal of this game?"*
+
+One answer is "to play as long as possible" (maximize time/lines/pieces), another is "to play as well as possible" (score).
+
+Upon looking at how common gamemodes work I found:
 - There are several game stats one can keep track of, and
-- Canonical / commonly found gamemodes can be approximated as a combination of `(stat which is limited so game can complete) + (stat which player aims to optimize)`.
+- Commonly found gamemodes can be approximated as a combination of *`(stat which is limited so game can complete)` + `(stat which player aims to optimize)`*.
+- 
 Examples:
 - *'Marathon':* limit Level to 20, try for highest score.
 - *'Sprint'* / *'40 lines'*: limit lines to 40, try for lowest time.
 - *'Ultra'* / *'Time Trial'*: limit time to 2-3min, try for highest score / most lines.
+
 The real implementation additionally stores the (speed) level to start at, and whether clearing lines increments the level.
+
 > [!NOTE]
 > Given one stat, how do we know whether we want to maximize or minimize another arbitrary stat?
 > I may be overlooking a simpler pattern, but it seems one can order all stats linearly, and given a stat to be fixed/limited, any other stat is maximized/minimized directly depending on whether it's further down/up the sequence:
@@ -384,7 +417,7 @@ The real implementation additionally stores the (speed) level to start at, and w
 > 
 > <summary>Gamemode Stat Relation Table</summary>
 > 
-> | name | finss | time  | piecs | lines | level | score |
+> | name | [finss](https://harddrop.com/wiki/Finesse) | time  | piecs | lines | level | score |
 > | ---- | ----- | ----- | ----- | ----- | ----- | ----- |
 > |      |  fix  |  MAX  |       |       |       |
 > |      |       |       |  MAX  |       |       |
@@ -419,22 +452,33 @@ The real implementation additionally stores the (speed) level to start at, and w
 > 
 > </details>
 
-
 > So how does 'Puzzle Mode' work? - I can tell you how: with a pinch of state modeling jank and some not-so-secret internal state leakage via `Game::set_modifier`.
+
 
 ### Scoring
 
-Coming up with a good score system is tough, and experience and playtesting helps, so the one I come up with probably sucks ("how many points should a 'perfect clear' receive?"). Even so, I went along and experimented, since I liked the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists).
+Coming up with a good [score system](https://tetris.wiki/Scoring#Recent_guideline_compatible_games) is easier with practical experience and playtesters.
+
+I honestly tried coming up with a new, simple, fair one but it's hard to judge how much to reward the player for any given action and so the one I came up with probably sucks.
+*(How many points should a 'perfect clear' receive? - I've never achieved a single perfect clear in my life.)*
+
+Even so, I went along and experimented;
+I really like the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists) (as opposed to modern Tetris' obession with T-spins).
+
 
 ### Controls
 
-Quick research on the 'best' or 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809). Upon sampling a few dozen on reddit posts it seems a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**. "Choose what feels best for you" some said - they're probably right. *(\*Even so, one should *not* hammer the spacebar for hard drops, the only button guideline suggests.)*
+Self research on the 'best' / 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809).
+In a sample a few dozen on reddit it looked like a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**.
+"Choose what feels best for you" was frequen advice - which sounds about right.
+*(\*Even so, one should **not** hammer `  space  ` for hard drops, the only button guideline suggests for said hard drop.)*
 
 
-### Menu Navigation.
+### Menu Navigation
 
-Modeling how the TUI goes between the menus was unclear initially. Luckily, I was able to look at how [Noita](https://noitagame.com/) did its menu navigation and saw that it needn't be a complicated system;
-In essence, the menus form a graph (with menus as nodes and valid transitions as directed edges), and some menus allow one to _go back_ to where one came from last (or not).
+Modeling how the TUI moves between the menus was initially very unclear.
+Luckily, I was able to look at how [Noita](https://noitagame.com/) does its menu navigation and saw that it needn't be too complicated.
+The menus form a graph (with menus as nodes and valid transitions as directed edges), and only some menus (e.g. pop-ups) allow one backtrack to a previous menu.
 
 <details>
 
@@ -454,6 +498,7 @@ This project allowed me to have first proper learning experience with programmin
 Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate).
 
 On the Rust side of things I learned about;
+- Using [Crossterm](https://crates.io/crates/crossterm) for cross-platform terminal manipulation! ([Ratatui](https://crates.io/crates/ratatui/) was a candidate but I ended up rolling my own TUI)
 - Some [coding](https://docs.kernel.org/rust/coding-guidelines.html) [style](https://doc.rust-lang.org/nightly/style-guide/) [guidelines](https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/style.md#getters--setters) & `cargo fmt` (~`#[rustfmt::skip]`~),
 - "[How to order Rust code](https://deterministic.space/how-to-order-rust-code.html)",
 - introduction to [writing](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html) [documentation](https://rust-lang.github.io/api-guidelines/documentation.html) (and the fact they can [contain tested examples](https://blog.guillaume-gomez.fr/articles/2020-03-12+Guide+on+how+to+write+documentation+for+a+Rust+crate#Hiding-lines)) & `cargo doc`,
@@ -463,8 +508,8 @@ On the Rust side of things I learned about;
 - [clap](https://docs.rs/clap/latest/clap/) to parse simple command line arguments & `cargo run -- --fps=60`,
 - [formatting](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.format) the time with [chrono](https://rust-lang-nursery.github.io/rust-cookbook/datetime/parse.html#display-formatted-date-and-time) my favourite way,
 - the `format!` macro (which I discovered is the analogue to Python's f-strings my beloved),
-- using [Crossterm](https://crates.io/crates/crossterm) for the inputs (instead of something like [device_query](https://crates.io/crates/device_query) - also I did not end up using [ratatui](https://crates.io/crates/ratatui/) :c Someone will have to write a frontend with that)
-- the [annoyances](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement) of terminal emulators,
+- using Crossterm for input handling (instead of something like [device_query](https://crates.io/crates/device_query)
+- some [annoyances](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement) with terminal emulators, including how slow they are ~on Windows~,
 - the handy drop-in [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html) wrapper to diminish flickering,
 - more practice with Rust's [module system](https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html),
 - multithreading with [`std::sync::mpsc`](https://doc.rust-lang.org/std/sync/mpsc/)
