@@ -1,11 +1,13 @@
 <div align="center"><img width="440" src="Gallery/tetrs_logo.png" /></div>
 
 
-# Tetromino Game Engine + Playable Terminal Application
+<div align="center" style="text-align: center; width: 100%">
+<h1>Tetromino Game Engine + Terminal Application</h1>
+</div>
 
-This repository hosts:
-- `tetrs_terminal`, a simple, polished, efficient, cross-platform TUI implementation of the prototypical singleplayer game experience, and
-- `tetrs_engine`, a tetromino game engine implementing an abstract interface with modern mechanics.
+*This repo hosts*
+- `tetrs_terminal`, a simple and polished cross-platform TUI implementation of the typical singleplayer game,
+- and `tetrs_engine`, a tetromino game engine implementing an abstract interface with modern mechanics.
 
 
 ## How to run
@@ -27,18 +29,31 @@ This repository hosts:
 > > Terminals do not usually send "key released" signals, which is a problem for mechanics such as "press left to move left repeatedly **until key is released**".
 > > [Crossterm](https://docs.rs/crossterm/latest/crossterm/) automatically detects ['kitty-protocol'-compatible terminals]([https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement)) where this issue is solved.
 > > Otherwise DAS/ARR will be determined by Keyboard/OS/terminal emulator settings.
-> > *(This also affects Soft Drop, which with kitty can be held with the piece hitting ground without immediately locking piece.)*
+> > *(This also affects Soft Drop, where e.g. with kitty a piece may land the ground with Soft Drop being held without locking due to external ARR.)*
 > > 
 > > </details>
 
 
 ## Gallery
 
+*Main game demo:*
+
 ![Animated Demo of Tetrs](Gallery/tetrs_rec-main.gif)
+
+*ASCII graphics setting:*
 
 ![Animated Demo of Tetrs' ASCII graphics](Gallery/tetrs_rec-ascii.gif)
 
+
+<details>
+
+<summary> mild Puzzle Mode spoiler </summary>
+
+*Puzzle Mode with its 26 levels:*
+
 ![Animated Demo of Tetrs' Puzzle Mode](Gallery/tetrs_rec-puzzle.gif)
+
+</details>
 
 
 ## Features of the Application
@@ -46,9 +61,9 @@ This repository hosts:
 **Gamemodes**
 - Marathon (reach lvl 20), 40-Lines, Time Trial, Master (20G), Endless.
 - Puzzle Mode
-  - Find all perfect clears through some [*'ocular' rotation system*](#ocular-rotation-system) piece acrobatics (with one retry per puzzle stage).
+  - Perfect-clear yourself through 26 short puzzles with piece acrobatis enabled by the [*'ocular' rotation system*](#ocular-rotation-system)(with one retry per puzzle stage).
 - Custom Mode
-  - Start level start, toggle level increment, game limit *(Time, Score, Pieces, Lines, Level, or None)*.
+  - Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or None)*.
 
 **Gameplay**
 - Familiar game experience with moving, rotating, hard- and softdropping *tetrominos*.
