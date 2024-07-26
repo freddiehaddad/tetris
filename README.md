@@ -411,8 +411,8 @@ One answer is "to play as long as possible" (maximize time/lines/pieces), anothe
 Upon looking at how common gamemodes work I found:
 - There are several game stats one can keep track of, and
 - Commonly found gamemodes can be approximated as a combination of *`(stat which is limited so game can complete)` + `(stat which player aims to optimize)`*.
-- 
-Examples:
+
+*Examples:*
 - *'Marathon':* limit Level to 20, try for highest score.
 - *'Sprint'* / *'40 lines'*: limit lines to 40, try for lowest time.
 - *'Ultra'* / *'Time Trial'*: limit time to 2-3min, try for highest score / most lines.
