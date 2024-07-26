@@ -7,7 +7,7 @@
 
 *This repo hosts*
 - `tetrs_terminal`, a simple and polished cross-platform TUI implementation of the typical singleplayer game,
-- and `tetrs_engine`, a tetromino game engine implementing an abstract interface with modern mechanics.
+- and `tetrs_engine`, a tetromino game engine implementing an abstract interface handling modern mechanics.
 
 
 ## How to run
@@ -29,7 +29,7 @@
 > > Terminals do not usually send "key released" signals, which is a problem for mechanics such as "press left to move left repeatedly **until key is released**".
 > > [Crossterm](https://docs.rs/crossterm/latest/crossterm/) automatically detects ['kitty-protocol'-compatible terminals]([https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement)) where this issue is solved.
 > > Otherwise DAS/ARR will be determined by Keyboard/OS/terminal emulator settings.
-> > *(This also affects Soft Drop, where e.g. with kitty a piece may land the ground with Soft Drop being held without locking due to external ARR.)*
+> > *(This also affects Soft Drop, where e.g. with kitty a piece may land the ground with Soft Drop being held without locking due to external ARR. This is mitigated by the 'No soft drop lock' setting.)*
 > > 
 > > </details>
 
@@ -40,9 +40,13 @@
 
 ![Screenshot of Tetrs](Gallery/Screenshots/tetrs_screenshot-game.png)
 
+
 *Smooth rendering on all platforms, configurable controls and more:*
 
-*ASCII graphics available:*
+![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
+
+
+**ASCII graphics available:**
 
 <details>
 
@@ -52,10 +56,8 @@
 
 </details>
 
-![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
-
 > [!TIP]
-> Try **Puzzle Mode** with its 26 short stages to play with the the special ['ocular' rotation system](#ocular-rotation-system) *(feat. T-spin Triple)*!
+> Play **Puzzle Mode** with its 26 stages to try the special ['ocular' rotation system](#ocular-rotation-system) *(feat. T-spin Triples)*!
 > 
 > <details>
 > 
@@ -68,14 +70,14 @@
 
 ## Features of the Application
 
-**Gamemodes**
-- Marathon (reach lvl 20), 40-Lines, Time Trial, Master (20G), Endless.
+### Gamemodes
+- 'Marathon' (reach lvl 20) - 'Sprint' (40-Lines) - 'Ultra' (Time Trial) - Master (20G).
 - Puzzle Mode
-  - Perfect-clear yourself through 26 short puzzles with piece acrobatics enabled by the self-developed 'ocular' rotation system! *(\*Up to hree attempts per puzzle stage.)*
+  - Perfect-clear yourself through short puzzles with piece acrobatics enabled by the self-developed 'ocular' rotation system! *(\*Up to three attempts per puzzle stage.)*
 - Custom Mode
   - Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or None)*.
 
-**Gameplay**
+### Gameplay
 - Familiar game experience of moving, rotating, hard-/softdropping *tetrominos* with the aim to clear lines.
 - Colorful pieces (following guideline).
 - Next piece preview.
@@ -85,10 +87,7 @@
 
 For more technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
   
-**Scoreboard**
-- Data of games played in the past.
-  
-**Settings**
+### Settings
 - Tile graphics (colored Unicode <-> oldschool, monochrome ASCII).
 - Adjustable render rate and toggleable FPS counter.
 - Rotation systems: *Ocular*, *Classic* and *Super*.
@@ -111,9 +110,12 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
   | `Ctrl`+`C` | Exit program |
   
    </details>
-- (*Advanced:* "No soft drop lock" that enabled soft drop not instantly locking piece on ground even if keyboard enhancements are off.)
+- (*Advanced:* "No soft drop lock" enabled soft drop not instantly locking pieces on ground even if keyboard enhancements are off, for better experience on typical consoles.)
+  
+### Scoreboard
+- History of games played in the past.
 
-(Settings and scoreboard are stored to / loaded from local *tetrs_terminal.json* if possible).
+\*Note that settings and game history are stored to / loaded from a local *tetrs_terminal.json* file if possible (generated in the folder where `tetrs_terminal` is executed).
 
 
 ## Features of the Tetrs Engine
@@ -125,12 +127,15 @@ Basic interaction with the engine could look like the following:
 ```rust
 // Starting a game.
 let game = tetrs_engine::Game::with_gamemode(gamemode, time_started);
+
 // Application loop.
 loop {
   // Updating the game with a new button state at a point in time.
   game.update(Some(new_button_state), update_time);
-  // Updating the game with *no* change in button state (since the last).
+  // ...
+  // Updating the game with *no* change in button state (since previous).
   game.update(None, update_time_2);
+
   // Retrieving the game state (to render the board, active piece, next pieces, etc.).
   let GameState { board, .. } = game.state();
 }
@@ -138,9 +143,9 @@ loop {
 
 <details>
 
-<summary> Using the engine in your rust project </summary>
+<summary> Using the engine in a Rust project </summary>
 
-Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to your project:
+Adding `tetrs_engine` as a [dependency from git](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) to a project:
 
 ```toml
 [dependencies]
@@ -153,20 +158,22 @@ tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
 
 <summary> Game Configuration Aspects </summary>
 
-- Gamemodes: Marathon, Sprint, Ultra, Master; Custom (game limit; start lvl; whether to increment level).
-- Rotation Systems: *Ocular Rotation System*, *Classic Rotation System*, *Super Rotation System*.
-- Tetromino Generators: *Recency-based*, *Bag*, *Uniformly random*.
-- Piece Preview (default N = 1)
+- Gamemodes: Are encoded as a combination of *game limit*, *starting level* and *whether to increment level*. See [Gamemodes](#gamemodes).
+- Rotation Systems: *Ocular Rotation System*, *Classic Rotation System*, *Super Rotation System*. See [Ocular Rotation System](#ocular-rotation-system).
+- Tetromino Generators: *Recency-based*, *Bag*, *Uniformly random*. Default is recency. See [Tetromino Generation](#tetromino-generation).
+- Piece Preview (default 1)
 - Delayed Auto Shift (default DAS = 200ms)
 - Auto Repeat Rate (default ARR = 50ms)
 - Soft Drop Factor (default SDF = 15.0)
-- Hard drop delay (default at 0.1ms)
-- Line clear delay (default at 200ms)
+- Hard drop delay (default 0.1ms)
+- Line clear delay (default 200ms)
 - Appearance Delay (default ARE = 100ms)
 
 Currently, drop delay and lock delay\* *(\*But not total ground time)* are a function of the current level:
-- Drop delay (1000ms at lvl 1 to 0.833ms ("20G") at lvl 19).
-- 'Timer' variant of Extended Placement Lockdown (step reset); The piece tries to lock every 500ms at lvl 19 to every 150ms at lvl 30, and any given piece may only touch ground for 2250ms in total. See also [Piece Locking](#piece-locking).
+- Drop delay (1000ms at lvl 1 to 0.833ms ("20G") at lvl 19, as per guideline)
+- 'Timer' variant of Extended Placement Lockdown (step reset); The piece tries to lock every 500ms at lvl 19 to every 150ms at lvl 30, and any given piece may only touch ground for 2250ms in total. See [Piece Locking](#piece-locking).
+
+All default values loosely based on the [Guideline](https://tetris.wiki/Tetris_Guideline).
 
 </details>
 
@@ -175,51 +182,18 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 <summary> Game State Aspects </summary>
 
 - Time: Game time is held abstract as "time elapsed since game started" and is not directly tied to real-world timestamps.
-- Game finish: The game knows if it finished, and if session was won or lost. Game Over scenarios are:
+- Game finish: The game knows if it finished, and if session was won or lost. Normal Game Over scenarios are:
   - Block out: newly piece spawn location is occupied.
   - Lock out: a piece was completely locked above the skyline (row 21 and above).
-- Event queue: All game events are kept in an internal queue that is stepped through, up to the provided timestamp of a `Game::update` call.
+- Event queue: All game events are kept in an internal queue that is simulated through, up to the provided timestamp in a `Game::update` call.
 - Buttons pressed state: The game keeps an abstract state of which buttons are currently pressed.
-- Board state: Yes.
+- Board state: (Yes).
 - Active piece: The active piece is stored as a (tetromino, orientation, position) tuple plus some locking data.
-- Next Pieces: Are kept in a queue and can be viewed.
-- Pieces played so far: Kept as a stat.
-- Lines cleared: <sup>yeah</sup>
+- Next Pieces: Are polled from the generator, kept in a queue and can be viewed.
+- Pieces played so far: A counter for each locked piece by type is stored.
+- Lines cleared: (Yes)<sup>2</sup>.
 - (Speed) Level: Increases every 10 line clears and influences only drop/lock delay.
-- Scoring: Line clears trigger a score bonus, which takes into account number of lines cleared, spins, combos, back-to-backs.
-  <details>
-  
-  <summary>Scoring Details and Formula</summary>
-  
-  ```haskell
-  score_bonus = 10
-              * (lines ^ 2)
-              * (if spin then 4 else 1)
-              * (if perfect then 16 else 1)
-              * combo
-              * maximum [1, backToBack * backToBack]
-    where lines = "number of lines cleared simultaneously"
-          spin = "piece could not move up when locking occurred"
-          perfect = "board is empty after line clear"
-          combo = "number of consecutive pieces where line clear occurred"
-          backToBack = maximum [1, "number of consecutive line clears where spin, perfect or quadruple line clear occurred"]
-  ```
-  A table of some bonuses is provided:
-  | Score bonus | Action |
-  | -: | :- |
-  | +10 | Single |
-  | +40 | Double |
-  | +90 | Triple |
-  | +160 | Quadruple |
-  | +20 | Single (2.combo) |
-  | +30 | Single (3.combo) |
-  | +80 | Double (2.combo) |
-  | +120 | Double (3.combo) |
-  | +40 | ?-Spin Single |
-  | +160 | ?-Spin Double |
-  | +360 | ?-Spin Triple |
-
-  </details>
+- Scoring: Line clears trigger a score bonus, which takes into account number of lines cleared, spins, combos, back-to-backs; See [Scoring](#scoring).
   
 </details>
 
@@ -228,8 +202,8 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 
 <summary> Game Feedback Aspects </summary>
 
-The game provides some useful feedback events upon every `update`, usually used to correctly implement visual effects:
-- *Piece locked down*, *Lines cleared*, *Hard drop*, *Accolade* (score bonus info), *Message* (generic message, currently unused)
+The game provides some useful feedback events upon every `update`, usually used to correctly implement visual frontend effects:
+- *Piece locked down*, *Lines cleared*, *Hard drop*, *Accolade* (score bonus info), *Message* (generic message, currently unused for base gamemodes)
 
 </details>
 
@@ -238,9 +212,9 @@ The game provides some useful feedback events upon every `update`, usually used 
 
 ## Project Highlights
 
-While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) served as good inspiration, I ended up doing a lot of amateur research into a variety of game details (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) and also asking people about the game (thank you GrBtAce and KonSola5!).
+While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) serves as good inspiration, I ended up doing a lot of amateur research into a variety of game details (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) as they stand in the modern community, and also asking people about the game. Thank you GrBtAce and KonSola5!
 
-In the following I detail various interesting concepts I tackled on my way to bringing this project to this point.
+In the following I detail various interesting concepts I tackled on my way to bringing this project to life.
 
 
 ### Tetromino Generation
@@ -492,33 +466,66 @@ The real implementation additionally stores the (speed) level to start at, and w
 
 ### Scoring
 
-Coming up with a good [score system](https://tetris.wiki/Scoring#Recent_guideline_compatible_games) is easier with practical experience and playtesters.
+The exact scoring formula is given by the following:
+  <details>
+  
+  <summary>Scoring Details and Formula</summary>
+  ```haskell
+  score_bonus = 10
+              * (lines ^ 2)
+              * (if spin then 4 else 1)
+              * (if perfect then 16 else 1)
+              * combo
+              * maximum [1, backToBack * backToBack]
+    where lines = "number of lines cleared simultaneously"
+          spin = "piece could not move up when locking occurred"
+          perfect = "board is empty after line clear"
+          combo = "number of consecutive pieces where line clear occurred"
+          backToBack = maximum [1, "number of consecutive line clears where spin, perfect or quadruple line clear occurred"]
+  ```
+  A table of some bonuses is provided:
+  | Score bonus | Action |
+  | -: | :- |
+  | +10 | Single |
+  | +40 | Double |
+  | +90 | Triple |
+  | +160 | Quadruple |
+  | +20 | Single (2.combo) |
+  | +30 | Single (3.combo) |
+  | +80 | Double (2.combo) |
+  | +120 | Double (3.combo) |
+  | +40 | ?-Spin Single |
+  | +160 | ?-Spin Double |
+  | +360 | ?-Spin Triple |
 
-I honestly tried coming up with a new, simple, fair one but it's hard to judge how much to reward the player for any given action and so the one I came up with probably sucks.
-*(How many points should a 'perfect clear' receive? - I've never achieved a single perfect clear in my life.)*
+  </details>
 
-Even so, I went along and experimented;
-I really like the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists) (as opposed to modern Tetris' obession with T-spins).
+Coming up with a *good* [scoring system](https://tetris.wiki/Scoring#Recent_guideline_compatible_games) is easier with practical experience and playtesters.
+
+I earnestly tried to come up with a new, simple, fair formula, but it's tough to judge how much to reward the player for any given action *(how many points should a 'perfect clear' receive? - I've never achieved a single perfect clear in my life)*.
+The one I came up with, put mildly, *probably sucks*.
+
+But I still allowed myself to experiment, because I really liked the idea of [rewarding all spins](https://harddrop.com/wiki/List_of_twists) (and don't understand modern Tetris' obession with T-spins when L and J spins are also so satisfying).
 
 
 ### Controls
 
-Self research on the 'best' / 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809).
-In a sample a few dozen on reddit it looked like a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**.
-"Choose what feels best for you" was frequen advice - which sounds about right.
-*(\*Even so, one should **not** hammer `  space  ` for hard drops, the only button guideline suggests for said hard drop.)*
+A search for the 'best' / 'most ergonomic' game keybinds was [inconclusive](https://youtube.com/watch?v=6YhkkyXydNI&t=809).
+In a sample a few dozen opinions on reddit posts there was a 50/50 split on `←` `→` / `a` `d` or `z` `x` / `←` `→` for **move** / **rotate**, respectively.
+"Choose what feels best for you" was frequent advice - sounds about right.
+*(\*though some mentioned one should **not** hammer ` spacebar ` for hard drops, the only button the Guideline suggests for this action.)*
 
 
 ### Menu Navigation
 
-Modeling how the TUI moves between the menus was initially very unclear.
-Luckily, I was able to look at how [Noita](https://noitagame.com/) does its menu navigation and saw that it needn't be too complicated.
-The menus form a graph (with menus as nodes and valid transitions as directed edges), and only some menus (e.g. pop-ups) allow one backtrack to a previous menu.
+Modeling how the TUI should handle menus and move between them very unclear initially.
+Luckily, I was able to look at how [Noita](https://noitagame.com/)'s menus are connected and saw that it was quite structured:
+The menus form a graph (with menus as nodes and valid transitions as directed edges), with only some menus ('pop-ups') that allow backtracking to a previous menu.
 
 <details>
 
 <summary>
-  Tetrs Menu Graph
+  Tetrs Terminal Menu Graph
 </summary>
 
 ![tetrs menu graph](Gallery/tetrs_menu-graph.png)
@@ -528,12 +535,14 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 
 ### Miscellaneous Author Notes
 
-This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console), and the intricacies of the Game mechanics themselves (see [Features of the Tetrs Engine](#features-of-the-tetrs-engine)).
+This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console no less), and the intricacies of most important tetrs mechanics themselves.
 
-Gamedev-wise I learned about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate).
+Gamedev-wise I can mention mostly learning about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate).
+
+Frontend-wise I kind of winged it with the trusty [Crossterm](https://crates.io/crates/crossterm) for cross-platform terminal manipulation, though I may as well have used [Ratatui](https://crates.io/crates/ratatui/) after all.
+(Maybe some other time!)
 
 On the Rust side of things I learned about;
-- Using [Crossterm](https://crates.io/crates/crossterm) for cross-platform terminal manipulation! ([Ratatui](https://crates.io/crates/ratatui/) was a candidate but I ended up rolling my own TUI)
 - Some [coding](https://docs.kernel.org/rust/coding-guidelines.html) [style](https://doc.rust-lang.org/nightly/style-guide/) [guidelines](https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/style.md#getters--setters) & `cargo fmt` (~`#[rustfmt::skip]`~),
 - "[How to order Rust code](https://deterministic.space/how-to-order-rust-code.html)",
 - introduction to [writing](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html) [documentation](https://rust-lang.github.io/api-guidelines/documentation.html) (and the fact they can [contain tested examples](https://blog.guillaume-gomez.fr/articles/2020-03-12+Guide+on+how+to+write+documentation+for+a+Rust+crate#Hiding-lines)) & `cargo doc`,
@@ -543,19 +552,22 @@ On the Rust side of things I learned about;
 - [clap](https://docs.rs/clap/latest/clap/) to parse simple command line arguments & `cargo run -- --fps=60`,
 - [formatting](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.format) the time with [chrono](https://rust-lang-nursery.github.io/rust-cookbook/datetime/parse.html#display-formatted-date-and-time) my favourite way,
 - the `format!` macro (which I discovered is the analogue to Python's f-strings my beloved),
-- using Crossterm for input handling (instead of something like [device_query](https://crates.io/crates/device_query)
 - some [annoyances](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement) with terminal emulators, including how slow they are ~on Windows~,
 - the handy drop-in [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html) wrapper to diminish flickering,
 - more practice with Rust's [module system](https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html),
 - multithreading with [`std::sync::mpsc`](https://doc.rust-lang.org/std/sync/mpsc/)
 - [cargo workspaces](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html) to fully separate frontend and backend,
 - [cargo git dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories) so other people *could* reuse the backend,
-- learning about [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases.
+- learning about [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases,
+- and as last honourable mention: Looking for a good input reading crate for *ages*, failing to get [device_query](https://crates.io/crates/device_query) to work, and settling on trusty Crossterm, which did its job perfectly and I couldn't be happier, considering how not-made-for-games consoles are.
 
-All in all, Rust, known for its performance and safety, proved to be an very good choice for this project.
+All in all, Rust, known for its safety and performance - while still having high-level constructs like abstract datatypes (my beloved) - proved to be an excellent choice for this project.
 
-For the terminal recordings I used [asciinema](https://asciinema.org/).
+For the terminal GIF recordings I used [asciinema](https://asciinema.org/) + [agg](https://github.com/asciinema/agg):
+```bash
+agg --font-family="DejaVu Sans Mono" --line-height=1.17 --renderer=resvg --font-size=20, --fps-cap=30 --last-frame-duration=0  my_rec.cast my_rec.gif
+```
 
-<sup>~~PS: I'm aware there are, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oops~~</sup>
+<sup>~~PS: Wow there are, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oof~~</sup>
 
 *„Piecement Places.“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
