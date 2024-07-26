@@ -36,13 +36,23 @@
 
 ## Gallery
 
-*Main game demo:*
+*Classic game experience with different gamemodes:*
 
-![Animated Demo of Tetrs](Gallery/tetrs_rec-main.gif)
+![Screenshot of Tetrs](Gallery/Screenshots/tetrs_screenshot-game.png)
 
-*ASCII graphics setting:*
+*Smooth rendering on all platforms, configurable controls and more:*
 
-![Animated Demo of Tetrs' ASCII graphics](Gallery/tetrs_rec-ascii.gif)
+![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
+
+*ASCII graphics available:*
+
+<details>
+
+<summary>ASCII Demo GIF</summary>
+
+![Animated Demo of Tetrs' ASCII graphics](Gallery/Gifs/tetrs_rec-ascii.gif)
+
+</details>
 
 *Puzzle Mode with its 26 levels, can you get the T-Spin Triple?:*
 
@@ -52,9 +62,9 @@
 > 
 > <details>
 > 
-> <summary> mild Puzzle Mode spoiler </summary>
+> <summary> Puzzle Mode Demo GIF </summary>
 > 
-> ![Animated Demo of Tetrs' Puzzle Mode](Gallery/tetrs_rec-puzzle.gif)
+> ![Animated Demo of Tetrs' Puzzle Mode](Gallery/Gifs/tetrs_rec-puzzle.gif)
 > 
 > </details>
 
