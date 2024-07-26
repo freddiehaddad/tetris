@@ -113,7 +113,7 @@ fn rotate_ocular(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
                 N | S => if left { [( 0, 0), ( 0,-1), ( 1, 0), (-1,-1)].iter() }
                             else { [( 1, 0), ( 1,-1), ( 0, 0), ( 0,-1)].iter() },
                 E | W => if left { [(-1, 0), ( 0, 0), (-1, 1), ( 0, 1)].iter() }
-                            else { [( 0, 0), ( 0,-1), (-1, 0), ( 0, 1), (-1, 1)].iter() },
+                            else { [( 0, 0), (-1, 0), ( 0,-1), ( 1, 0), ( 0, 1), (-1, 1)].iter() },
             },
             Tetromino::Z => {
                 let mx = match orientation {
@@ -132,7 +132,7 @@ fn rotate_ocular(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
                 } else  {
                     break match orientation {
                         N => [( 0,-1), ( 0, 0), ( 1,-1), ( 1, 0)].iter(),
-                        E => [(-1, 0), (-1,-1), ( 0, 0), ( 0,-1)].iter(),
+                        E => [(-1, 1), (-1, 0), ( 0, 1), ( 0, 0), (-1,-1)].iter(),
                         S => [( 1, 0), ( 0, 0), ( 0,-1), ( 1,-1), ( 1,-2)].iter(),
                         W => [( 0, 0), (-1, 0), (-1,-1), ( 0,-1), ( 1,-1)].iter(),
                     };
@@ -140,13 +140,13 @@ fn rotate_ocular(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
             },
             Tetromino::L => break match orientation {
                 N => if left { [( 0,-1), ( 1,-1), ( 0, 0), ( 0,-2), ( 1, 0)].iter() }
-                        else { [( 1,-1), ( 1, 0), ( 2, 0), ( 0, 0)].iter() },
-                E => if left { [(-1, 1), (-1, 0), ( 0, 1), (-2, 0), ( 0, 0)].iter() }
+                        else { [( 1,-1), ( 1, 0), ( 2, 0), ( 0, 0), ( 2,-1)].iter() },
+                E => if left { [(-1, 1), (-1, 0), ( 0, 1), ( 0, 0), (-2, 0)].iter() }
                         else { [(-1, 0), ( 0, 0), ( 0,-1), ( 0, 1)].iter() },
                 S => if left { [( 1, 0), ( 0, 0), ( 1,-1), ( 0,-1)].iter() }
-                        else { [( 0, 0), ( 1, 0), ( 0,-1), (-1,-1), ( 1,-1)].iter() },
+                        else { [( 0, 0), ( 0,-1), ( 1, 0), ( 1,-1), (-1,-1)].iter() },
                 W => if left { [( 0, 0), (-1, 0), ( 0, 1), ( 1, 0), (-1, 1)].iter() }
-                        else { [( 0, 1), ( 0, 0), (-1, 1), (-1, 0)].iter() },
+                        else { [( 0, 1), ( 0, 0), (-1, 1), (-1, 0), ( 1, 1)].iter() },
             },
             Tetromino::J => {
                 let mx = match orientation {
