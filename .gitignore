@@ -20,4 +20,4 @@ Cargo.lock
 
 # Custom debug/game file
 
-tetrs_terminal_scores.json
+tetrs_terminal.json

@@ -134,6 +134,7 @@ pub struct GameConfig {
     pub ground_time_max: Duration,
     pub line_clear_delay: Duration,
     pub appearance_delay: Duration,
+    pub no_soft_drop_lock: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -483,6 +484,7 @@ impl Default for GameConfig {
             ground_time_max: Duration::from_millis(2250),
             line_clear_delay: Duration::from_millis(200),
             appearance_delay: Duration::from_millis(100),
+            no_soft_drop_lock: false,
         }
     }
 }
@@ -844,7 +846,7 @@ impl Game {
                             .insert(InternalEvent::Fall, event_time + drop_delay);
                         Some(dropped_piece)
                     // Piece hit ground but SoftDrop was pressed.
-                    } else if event == InternalEvent::SoftDrop {
+                    } else if event == InternalEvent::SoftDrop && !self.config.no_soft_drop_lock {
                         self.state.events.insert(InternalEvent::Lock, event_time);
                         Some(prev_piece)
                     // Piece hit ground and tried to drop naturally: don't do anything but try falling again later.

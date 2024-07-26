@@ -44,6 +44,8 @@
 
 ![Animated Demo of Tetrs' ASCII graphics](Gallery/tetrs_rec-ascii.gif)
 
+*Puzzle Mode with its 26 levels, can you get the T-Spin Triple?:*
+
 
 > [!TIP]
 > Try **Puzzle Mode** with its 26 short stages to play with the the special [*'ocular' rotation system*](#ocular-rotation-system)!
@@ -77,7 +79,7 @@
 For more technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
   
 **Scoreboard**
-- (stored to / loaded from local *tetrs_terminal_scores.json* if possible).
+- Data of games played in the past.
   
 **Settings**
 - Tile graphics (colored Unicode <-> oldschool, monochrome ASCII).
@@ -102,6 +104,9 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
   | `Ctrl`+`C` | Exit program |
   
    </details>
+- (*Advanced:* "No soft drop lock" that enabled soft drop not instantly locking piece on ground even if keyboard enhancements are off.)
+
+(Settings and scoreboard are stored to / loaded from local *tetrs_terminal.json* if possible).
 
 
 ## Features of the Tetrs Engine
