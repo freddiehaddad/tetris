@@ -1,4 +1,4 @@
-<div align="center"><img width="440" src="https://repository-images.githubusercontent.com/816034047/9eba09ef-d6da-4b4c-9884-630e7f87e102" /></div>
+<div align="center"><img width="440" src="Gallery/tetrs_logo.png" /></div>
 
 
 # Tetromino Game Engine + Playable Terminal Application
@@ -420,7 +420,15 @@ Quick research on the 'best' or 'most ergonomic' game keybinds was [inconclusive
 Modeling how the TUI goes between the menus was unclear initially. Luckily, I was able to look at how [Noita](https://noitagame.com/) did its menu navigation and saw that it needn't be a complicated system;
 In essence, the menus form a graph (with menus as nodes and valid transitions as directed edges), and some menus allow one to _go back_ to where one came from last (or not).
 
-TODO: Graph.
+<details>
+
+<summary>
+  Tetrs Menu Graph
+</summary>
+
+![Test Maze](Gallery/tetrs_menu-graph.png)
+
+</details>
 
 
 ### Miscellaneous Author Notes
