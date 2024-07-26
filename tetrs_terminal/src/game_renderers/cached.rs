@@ -182,8 +182,6 @@ impl GameScreenRenderer for Renderer {
             back_to_back_special_clears: _,
         } = game.state();
         let GameConfig { gamemode, .. } = game.config();
-        // Screen: some values.
-        let lines = lines_cleared.len();
         // Screen: some helpers.
         let stat_name = |stat| match stat {
             Stat::Lines(_) => "Lines",
@@ -197,7 +195,7 @@ impl GameScreenRenderer for Renderer {
         let mode_name_space = mode_name.len().max(14);
         let opti_name = stat_name(gamemode.optimize);
         let opti_value = match gamemode.optimize {
-            Stat::Lines(_) => format!("{}", lines),
+            Stat::Lines(_) => format!("{}", lines_cleared),
             Stat::Level(_) => format!("{}", level),
             Stat::Score(_) => format!("{}", score),
             Stat::Pieces(_) => format!("{}", pieces_played.iter().sum::<u32>()),
@@ -207,7 +205,7 @@ impl GameScreenRenderer for Renderer {
             (
                 format!("{} left:", stat_name(stat)),
                 match stat {
-                    Stat::Lines(lns) => format!("{}", lns.saturating_sub(lines)),
+                    Stat::Lines(lns) => format!("{}", lns.saturating_sub(*lines_cleared)),
                     Stat::Level(lvl) => format!("{}", lvl.get().saturating_sub(level.get())),
                     Stat::Score(pts) => format!("{}", pts.saturating_sub(*score)),
                     Stat::Pieces(pcs) => {
@@ -272,7 +270,7 @@ impl GameScreenRenderer for Renderer {
                 format!("   ----------          |                    +{:-^w$       }+", "", w=mode_name_space),
                 format!("   Level: {:<13       }|                    |  {          }:", level, opti_name),
                 format!("   Score: {:<13       }|                    |{:^15         }", score, opti_value),
-                format!("   Lines: {:<13       }|                    |               ", lines),
+                format!("   Lines: {:<13       }|                    |               ", lines_cleared),
                 format!("                       |                    |  {           }", goal_name),
                 format!("   Time elapsed        |                    |{:^15         }", goal_value),
                 format!("    {:<19             }|                    |               ", format_duration(*game_time)),
@@ -299,7 +297,7 @@ impl GameScreenRenderer for Renderer {
                 format!("   ─────────╴          ║                    ╟{:─^w$       }┘", "", w=mode_name_space),
                 format!("   Level: {:<13       }║                    ║  {          }:", level, opti_name),
                 format!("   Score: {:<13       }║                    ║{:^15         }", score, opti_value),
-                format!("   Lines: {:<13       }║                    ║               ", lines),
+                format!("   Lines: {:<13       }║                    ║               ", lines_cleared),
                 format!("                       ║                    ║  {           }", goal_name),
                 format!("   Time elapsed        ║                    ║{:^15         }", goal_value),
                 format!("    {:<19             }║                    ║               ", format_duration(*game_time)),
@@ -516,7 +514,7 @@ impl GameScreenRenderer for Renderer {
                     lineclears,
                     perfect_clear,
                     combo,
-                    opportunity: _,
+                    back_to_back,
                 } => {
                     action_stats.1.push(*score_bonus);
                     let mut strs = Vec::new();
@@ -560,7 +558,10 @@ impl GameScreenRenderer for Renderer {
                     }
                     strs.push(clear_action);
                     if *combo > 1 {
-                        strs.push(format!("combo.{combo}"));
+                        strs.push(format!("({combo}.combo)"));
+                    }
+                    if *back_to_back > 1 {
+                        strs.push(format!("({back_to_back}.B2B)"));
                     }
                     self.messages.push((*event_time, strs.join(" ")));
                     *relevant = false;

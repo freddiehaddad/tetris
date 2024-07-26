@@ -59,7 +59,6 @@ impl GameScreenRenderer for Renderer {
         } = game.state();
         let GameConfig { gamemode, .. } = game.config();
         // Screen: some values.
-        let lines = lines_cleared.len();
         // Screen: some helpers.
         let stat_name = |stat| match stat {
             Stat::Lines(_) => "Lines",
@@ -73,7 +72,7 @@ impl GameScreenRenderer for Renderer {
         let mode_name_space = mode_name.len().max(14);
         let opti_name = stat_name(gamemode.optimize);
         let opti_value = match gamemode.optimize {
-            Stat::Lines(_) => format!("{}", lines),
+            Stat::Lines(_) => format!("{}", lines_cleared),
             Stat::Level(_) => format!("{}", level),
             Stat::Score(_) => format!("{}", score),
             Stat::Pieces(_) => format!("{}", pieces_played.iter().sum::<u32>()),
@@ -83,7 +82,7 @@ impl GameScreenRenderer for Renderer {
             (
                 format!("{} left:", stat_name(stat)),
                 match stat {
-                    Stat::Lines(lns) => format!("{}", lns.saturating_sub(lines)),
+                    Stat::Lines(lns) => format!("{}", lns.saturating_sub(*lines_cleared)),
                     Stat::Level(lvl) => format!("{}", lvl.get().saturating_sub(level.get())),
                     Stat::Score(pts) => format!("{}", pts.saturating_sub(*score)),
                     Stat::Pieces(pcs) => {
@@ -147,7 +146,7 @@ impl GameScreenRenderer for Renderer {
             format!("    ─────────╴         ║                    ╟{:─^w$       }┘", "", w=mode_name_space),
             format!("    Level: {:<12      }║                    ║  {          }:", level, opti_name),
             format!("    Score: {:<12      }║                    ║{:^15         }", score, opti_value),
-            format!("    Lines: {:<12      }║                    ║               ", lines),
+            format!("    Lines: {:<12      }║                    ║               ", lines_cleared),
             format!("                       ║                    ║  {           }", goal_name),
             format!("    Time elapsed       ║                    ║{:^15         }", goal_value),
             format!("     {:<18            }║                    ║               ", format_duration(*game_time)),
@@ -387,7 +386,7 @@ impl GameScreenRenderer for Renderer {
                     lineclears,
                     perfect_clear,
                     combo,
-                    opportunity,
+                    back_to_back,
                 } => {
                     action_stats.1.push(*score_bonus);
                     let mut strs = Vec::new();
@@ -408,16 +407,12 @@ impl GameScreenRenderer for Renderer {
                     }
                     .to_ascii_uppercase();
                     action_stats.0[usize::try_from(*lineclears).unwrap()] += 1;
-                    let excl = match opportunity {
-                        1 => "'",
-                        2 => "!",
-                        3 => "!'",
-                        4 => "!!",
-                        x => unreachable!("unexpected opportunity count {x}"),
-                    };
-                    strs.push(format!("{clear_action}{excl}"));
+                    strs.push(clear_action);
                     if *combo > 1 {
                         strs.push(format!("[{combo}.combo]"));
+                    }
+                    if *back_to_back > 1 {
+                        strs.push(format!("{back_to_back}-B2B"));
                     }
                     self.messages.push((*event_time, strs.join(" ")));
                     *relevant = false;

@@ -150,7 +150,7 @@ pub struct GameState {
     pub active_piece_data: Option<(ActivePiece, LockingData)>,
     pub next_pieces: VecDeque<Tetromino>,
     pub pieces_played: [u32; 7],
-    pub lines_cleared: Vec<Line>,
+    pub lines_cleared: usize,
     pub level: NonZeroU32,
     pub score: u32,
     pub consecutive_line_clears: u32,
@@ -177,7 +177,7 @@ pub enum Feedback {
         lineclears: u32,
         perfect_clear: bool,
         combo: u32,
-        opportunity: u32,
+        back_to_back: u32,
     },
     Message(String),
 }
@@ -397,7 +397,7 @@ impl Gamemode {
     #[allow(dead_code)]
     pub fn sprint(start_level: NonZeroU32) -> Self {
         Self {
-            name: String::from("Sprint"),
+            name: String::from("40-Lines"),
             start_level,
             increment_level: false,
             limit: Some(Stat::Lines(40)),
@@ -408,7 +408,7 @@ impl Gamemode {
     #[allow(dead_code)]
     pub fn ultra(start_level: NonZeroU32) -> Self {
         Self {
-            name: String::from("Ultra"),
+            name: String::from("Time Trial"),
             start_level,
             increment_level: false,
             limit: Some(Stat::Time(Duration::from_secs(3 * 60))),
@@ -529,7 +529,7 @@ impl Game {
                 .take(config.preview_count)
                 .collect(),
             pieces_played: [0; 7],
-            lines_cleared: Vec::new(),
+            lines_cleared: 0,
             level: config.gamemode.start_level,
             score: 0,
             consecutive_line_clears: 0,
@@ -609,7 +609,7 @@ impl Game {
                         // Check if game has to end.
                         if let Some(limit) = self.config.gamemode.limit {
                             let goal_achieved = match limit {
-                                Stat::Lines(lines) => lines <= self.state.lines_cleared.len(),
+                                Stat::Lines(lines) => lines <= self.state.lines_cleared,
                                 Stat::Level(level) => level <= self.state.level,
                                 Stat::Score(score) => score <= self.state.score,
                                 Stat::Pieces(pieces) => {
@@ -898,14 +898,6 @@ impl Game {
                 }
                 let n_lines_cleared = u32::try_from(lines_cleared.len()).unwrap();
                 if n_lines_cleared > 0 {
-                    let n_tiles_used = u32::try_from(
-                        prev_piece
-                            .tiles()
-                            .iter()
-                            .filter(|((_, y), _)| lines_cleared.contains(y))
-                            .count(),
-                    )
-                    .unwrap();
                     // Add score bonus.
                     let perfect_clear = self
                         .state
@@ -919,12 +911,12 @@ impl Game {
                     } else {
                         self.state.back_to_back_special_clears = 0;
                     }
-                    let score_bonus = 10 // NOTE: We do not currently use `(10 + self.level.get() - 1)`.
-                        * n_lines_cleared
-                        * n_tiles_used
-                        * if spin { 3 } else { 1 } // TODO: Scoring.
-                        * if perfect_clear { 10 } else { 1 }
-                        * self.state.consecutive_line_clears;
+                    let score_bonus = 10
+                        *(n_lines_cleared * n_lines_cleared)
+                        * if spin { 4 } else { 1 } // TODO: Scoring.
+                        * if perfect_clear { 16 } else { 1 }
+                        * self.state.consecutive_line_clears
+                        * (self.state.back_to_back_special_clears * self.state.back_to_back_special_clears).max(1);
                     self.state.score += score_bonus;
                     let yippie = Feedback::Accolade {
                         score_bonus,
@@ -933,7 +925,7 @@ impl Game {
                         lineclears: n_lines_cleared,
                         perfect_clear,
                         combo: self.state.consecutive_line_clears,
-                        opportunity: n_tiles_used,
+                        back_to_back: self.state.back_to_back_special_clears,
                     };
                     feedback_events.push((event_time, yippie));
                     feedback_events.push((
@@ -963,14 +955,13 @@ impl Game {
                 for y in (0..Self::HEIGHT).rev() {
                     // Full line: move it to the cleared lines storage and push an empty line to the board.
                     if self.state.board[y].iter().all(|mino| mino.is_some()) {
-                        let line = self.state.board.remove(y);
+                        self.state.board.remove(y);
                         self.state.board.push(Default::default());
-                        self.state.lines_cleared.push(line);
+                        self.state.lines_cleared += 1;
                     }
                 }
                 // Increment level if 10 lines cleared.
-                if self.config.gamemode.increment_level && self.state.lines_cleared.len() % 10 == 0
-                {
+                if self.config.gamemode.increment_level && self.state.lines_cleared % 10 == 0 {
                     self.state.level = self.state.level.saturating_add(1);
                 }
                 self.state.events.insert(

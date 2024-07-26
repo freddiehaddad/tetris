@@ -93,7 +93,7 @@ impl GameScreenRenderer for Renderer {
                     lineclears,
                     perfect_clear,
                     combo,
-                    opportunity,
+                    back_to_back,
                 } => {
                     let mut strs = Vec::new();
                     if *spin {
@@ -105,15 +105,12 @@ impl GameScreenRenderer for Renderer {
                         3 => "Triple",
                         4 => "Quadruple",
                         x => unreachable!("unexpected line clear count {x}"),
-                    };
-                    let excl = match opportunity {
-                        1 => "'",
-                        2 => "!",
-                        3 => "!'",
-                        4 => "!!",
-                        x => unreachable!("unexpected opportunity count {x}"),
-                    };
-                    strs.push(format!("{clear_action}{excl}"));
+                    }
+                    .to_string();
+                    if *back_to_back > 1 {
+                        strs.push(format!("{back_to_back}-B2B"));
+                    }
+                    strs.push(clear_action);
                     if *combo > 1 {
                         strs.push(format!("[{combo}.combo]"));
                     }

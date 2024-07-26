@@ -190,10 +190,12 @@ impl<T: Write> App<T> {
                     }
             })
             .collect::<Vec<_>>();
-        let save_str = serde_json::to_string(&relevant_games_finished)?;
-        let mut file = File::create(Self::SAVE_FILE)?;
-        // TODO: Handle error?
-        let _ = file.write(save_str.as_bytes())?;
+        if !relevant_games_finished.is_empty() {
+            let save_str = serde_json::to_string(&relevant_games_finished)?;
+            let mut file = File::create(Self::SAVE_FILE)?;
+            // TODO: Handle error?
+            let _ = file.write(save_str.as_bytes())?;
+        }
         Ok(())
     }
 
@@ -828,7 +830,7 @@ impl<T: Write> App<T> {
         gamemode.optimize = match gamemode.optimize {
             Stat::Time(_) => Stat::Time(game.state().game_time),
             Stat::Pieces(_) => Stat::Pieces(game.state().pieces_played.iter().sum()),
-            Stat::Lines(_) => Stat::Lines(game.state().lines_cleared.len()),
+            Stat::Lines(_) => Stat::Lines(game.state().lines_cleared),
             Stat::Level(_) => Stat::Level(game.state().level),
             Stat::Score(_) => Stat::Score(game.state().score),
         };
@@ -958,7 +960,7 @@ impl<T: Write> App<T> {
                 .queue(MoveTo(x_main, y_main + y_selection + 6))?
                 .queue(Print(format!(
                     "{:^w_main$}",
-                    format!("Lines: {}", lines_cleared.len())
+                    format!("Lines: {}", lines_cleared)
                 )))?
                 .queue(MoveTo(x_main, y_main + y_selection + 7))?
                 .queue(Print(format!(
@@ -1399,8 +1401,7 @@ impl<T: Write> App<T> {
                             "{}: {} ({} lim.) ~{}",
                             gamemode.name,
                             match gamemode.optimize {
-                                Stat::Lines(_) =>
-                                    format!("{} lines", last_state.lines_cleared.len()),
+                                Stat::Lines(_) => format!("{} lines", last_state.lines_cleared),
                                 Stat::Level(_) => format!("{} levels", last_state.level),
                                 Stat::Score(_) => format!("{} points", last_state.score),
                                 Stat::Pieces(_) => format!(
@@ -1416,7 +1417,7 @@ impl<T: Write> App<T> {
                                     if gfs.was_successful() {
                                         "".to_string()
                                     } else {
-                                        format!("{} /", last_state.lines_cleared.len())
+                                        format!("{} /", last_state.lines_cleared)
                                     }
                                 ),
                                 Some(Stat::Level(lvl)) => format!(

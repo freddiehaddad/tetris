@@ -208,11 +208,11 @@ pub fn make_game() -> Game {
                     feedback_events.push((
                         state.game_time,
                         Feedback::Message(format!(
-                            "{} Puzzle: {puzzle_name}",
+                            "{} Stage: {puzzle_name}",
                             if current_puzzle_attempt == 1 {
                                 "New"
                             } else {
-                                "--> RETRYING"
+                                "[RETRYING]"
                             }
                         )),
                     ));
