@@ -515,9 +515,11 @@ On the Rust side of things I learned about;
 - multithreading with [`std::sync::mpsc`](https://doc.rust-lang.org/std/sync/mpsc/)
 - [cargo workspaces](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html) to fully separate frontend and backend,
 - [cargo git dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories) so other people *could* reuse the backend,
-- and finally, [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases.
+- learning about [cross-compilation](https://blog.logrocket.com/guide-cross-compilation-rust/#how-rust-represents-platforms) for releases.
 
 All in all, Rust, known for its performance and safety, proved to be an very good choice for this project.
+
+For the terminal recordings I used [asciinema](https://asciinema.org/).
 
 <sup>~~PS: I'm aware there are, like, a billion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, oops~~</sup>
 
