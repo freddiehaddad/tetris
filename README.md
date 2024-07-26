@@ -272,7 +272,7 @@ Good criteria for a rotation system I can think of would be:
 
 The result of this was the *'Ocular' Rotation System*, which was made by... *looking* at each piece orientation and drawing the most *visually* sensible position(s) for it to land in after rotating.
 
-By overlapping all the kicks that are test in sequential order, one gets a compact heatmap of where the piece will land, going from hottest color (bright yellow) to coldest (dark purple):
+By overlapping all the kicks that are tested in sequential order, one gets a compact heatmap of where the piece will land, going from hottest color (bright yellow, first kick) to coldest (dark purple, last kick):
 
 <details>
 
