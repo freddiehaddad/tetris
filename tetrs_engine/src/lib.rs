@@ -22,9 +22,20 @@ pub type Coord = (usize, usize);
 pub type Offset = (isize, isize);
 pub type GameTime = Duration;
 pub type FeedbackEvents = Vec<(GameTime, Feedback)>;
-pub type FnGameModify =
-    Box<dyn FnMut(Option<InternalEvent>, &mut GameConfig, &mut GameState, &mut FeedbackEvents)>;
+pub type FnGameMod = Box<dyn FnMut(&mut GameConfig, &mut GameMode, &mut GameState, &mut FeedbackEvents, Option<InternalEvent>)>;
 type EventMap = HashMap<InternalEvent, GameTime>;
+
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Button {
+    MoveLeft,
+    MoveRight,
+    RotateLeft,
+    RotateRight,
+    RotateAround,
+    DropSoft,
+    DropHard,
+}
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -57,44 +68,47 @@ pub struct ActivePiece {
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Stat {
-    Time(Duration),
-    Pieces(u32),
-    Lines(usize),
-    Level(NonZeroU32),
-    Score(u32),
-}
-
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Gamemode {
-    pub name: String,
-    pub start_level: NonZeroU32,
-    pub increment_level: bool,
-    pub limit: Option<Stat>,
-    pub optimize: Stat,
-}
-
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Button {
-    MoveLeft,
-    MoveRight,
-    RotateLeft,
-    RotateRight,
-    RotateAround,
-    DropSoft,
-    DropHard,
-}
-
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LockingData {
     touches_ground: bool,
     last_touchdown: Option<GameTime>,
     last_liftoff: Option<GameTime>,
     ground_time_left: Duration,
     lowest_y: usize,
+}
+
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Default, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Limits {
+    pub time: Option<(bool, Duration)>,
+    pub pieces: Option<(bool, u32)>,
+    pub lines: Option<(bool, usize)>,
+    pub level: Option<(bool, NonZeroU32)>,
+    pub score: Option<(bool, u32)>,
+}
+
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct GameMode {
+    pub name: String,
+    pub start_level: NonZeroU32,
+    pub increment_level: bool,
+    pub limits: Limits,
+}
+
+#[derive(PartialEq, PartialOrd, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct GameConfig {
+    pub rotation_system: RotationSystem,
+    pub tetromino_generator: TetrominoGenerator,
+    pub preview_count: usize,
+    pub delayed_auto_shift: Duration,
+    pub auto_repeat_rate: Duration,
+    pub soft_drop_factor: f64,
+    pub hard_drop_delay: Duration,
+    pub ground_time_max: Duration,
+    pub line_clear_delay: Duration,
+    pub appearance_delay: Duration,
+    pub no_soft_drop_lock: bool,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
@@ -117,31 +131,16 @@ pub enum InternalEvent {
 pub enum GameOver {
     LockOut,
     BlockOut,
-    Fail,
-}
-
-#[derive(PartialEq, PartialOrd, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct GameConfig {
-    pub gamemode: Gamemode,
-    pub rotation_system: RotationSystem,
-    pub tetromino_generator: TetrominoGenerator,
-    pub preview_count: usize,
-    pub delayed_auto_shift: Duration,
-    pub auto_repeat_rate: Duration,
-    pub soft_drop_factor: f64,
-    pub hard_drop_delay: Duration,
-    pub ground_time_max: Duration,
-    pub line_clear_delay: Duration,
-    pub appearance_delay: Duration,
-    pub no_soft_drop_lock: bool,
+    ModeLimit,
+    Forfeit,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameState {
     pub game_time: GameTime,
-    pub finished: Option<Result<(), GameOver>>,
+    pub update_counter: u64,
+    pub end: Option<Result<(), GameOver>>,
     /// Invariants:
     /// * Until the game has finished there will always be more events: `finished.is_some() || !next_events.is_empty()`.
     /// * Unhandled events lie in the future: `for (event,event_time) in self.events { assert(self.time_updated < event_time); }`.
@@ -159,10 +158,11 @@ pub struct GameState {
 }
 
 pub struct Game {
-    state: GameState,
     config: GameConfig,
+    mode: GameMode,
+    state: GameState,
     rng: ThreadRng,
-    modifier: Option<FnGameModify>,
+    modifiers: Vec<FnGameMod>,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
@@ -279,8 +279,8 @@ impl<T> ops::Index<Tetromino> for [T; 7] {
 
     fn index(&self, idx: Tetromino) -> &Self::Output {
         match idx {
-            Tetromino::I => &self[0],
-            Tetromino::O => &self[1],
+            Tetromino::O => &self[0],
+            Tetromino::I => &self[1],
             Tetromino::S => &self[2],
             Tetromino::Z => &self[3],
             Tetromino::T => &self[4],
@@ -293,8 +293,8 @@ impl<T> ops::Index<Tetromino> for [T; 7] {
 impl<T> ops::IndexMut<Tetromino> for [T; 7] {
     fn index_mut(&mut self, idx: Tetromino) -> &mut Self::Output {
         match idx {
-            Tetromino::I => &mut self[0],
-            Tetromino::O => &mut self[1],
+            Tetromino::O => &mut self[0],
+            Tetromino::I => &mut self[1],
             Tetromino::S => &mut self[2],
             Tetromino::Z => &mut self[3],
             Tetromino::T => &mut self[4],
@@ -366,32 +366,14 @@ impl ActivePiece {
     }
 }
 
-impl Gamemode {
-    #[allow(dead_code)]
-    pub const fn custom(
-        name: String,
-        start_level: NonZeroU32,
-        increment_level: bool,
-        mode_limit: Option<Stat>,
-        optimization_goal: Stat,
-    ) -> Self {
-        Self {
-            name,
-            start_level,
-            increment_level,
-            limit: mode_limit,
-            optimize: optimization_goal,
-        }
-    }
-
+impl GameMode {
     #[allow(dead_code)]
     pub fn marathon() -> Self {
         Self {
             name: String::from("Marathon"),
             start_level: NonZeroU32::MIN,
             increment_level: true,
-            limit: Some(Stat::Level(Game::LEVEL_20G.saturating_add(1))),
-            optimize: Stat::Score(0),
+            limits: Limits { level: Some((true, Game::LEVEL_20G.saturating_add(1))), ..Default::default() },
         }
     }
 
@@ -401,8 +383,7 @@ impl Gamemode {
             name: String::from("40-Lines"),
             start_level,
             increment_level: false,
-            limit: Some(Stat::Lines(40)),
-            optimize: Stat::Time(Duration::ZERO),
+            limits: Limits { lines: Some((true, 40)), ..Default::default() },
         }
     }
 
@@ -412,8 +393,7 @@ impl Gamemode {
             name: String::from("Time Trial"),
             start_level,
             increment_level: false,
-            limit: Some(Stat::Time(Duration::from_secs(3 * 60))),
-            optimize: Stat::Lines(0),
+            limits: Limits { time: Some((true, Duration::from_secs(3 * 60))), ..Default::default() },
         }
     }
 
@@ -423,19 +403,17 @@ impl Gamemode {
             name: String::from("Master"),
             start_level: Game::LEVEL_20G,
             increment_level: true,
-            limit: Some(Stat::Lines(300)),
-            optimize: Stat::Score(0),
+            limits: Limits { lines: Some((true, 300)), ..Default::default() },
         }
     }
 
     #[allow(dead_code)]
     pub fn endless() -> Self {
         Self {
-            name: String::from("Endless"),
+            name: String::from("Zen"),
             start_level: NonZeroU32::MIN,
             increment_level: true,
-            limit: None,
-            optimize: Stat::Pieces(0),
+            limits: Default::default(),
         }
     }
 }
@@ -473,7 +451,6 @@ impl<T> ops::IndexMut<Button> for [T; 7] {
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
-            gamemode: Gamemode::marathon(),
             rotation_system: RotationSystem::Ocular,
             tetromino_generator: TetrominoGenerator::recency(),
             preview_count: 1,
@@ -495,7 +472,7 @@ impl fmt::Debug for Game {
             .field("config", &self.config)
             .field("state", &self.state)
             .field("rng", &std::any::type_name_of_val(&self.rng))
-            .field("game_modifier", &std::any::type_name_of_val(&self.modifier))
+            .field("modifiers", &std::any::type_name_of_val(&self.modifiers))
             .finish()
     }
 }
@@ -507,18 +484,16 @@ impl Game {
                                    // SAFETY: 19 > 0, and this is the level at which blocks start falling with 20G.
     const LEVEL_20G: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(19) };
 
-    pub fn with_gamemode(gamemode: Gamemode) -> Self {
-        Self::with_config(GameConfig {
-            gamemode,
-            ..Default::default()
-        })
+    pub fn new(gamemode: GameMode) -> Self {
+        Self::with_config(gamemode, GameConfig::default())
     }
 
-    pub fn with_config(mut config: GameConfig) -> Self {
+    pub fn with_config(gamemode: GameMode, mut config: GameConfig) -> Self {
         let mut rng = rand::thread_rng();
         let state = GameState {
             game_time: Duration::ZERO,
-            finished: None,
+            update_counter: 0,
+            end: None,
             events: HashMap::from([(InternalEvent::Spawn, Duration::ZERO)]),
             buttons_pressed: Default::default(),
             board: std::iter::repeat(Line::default())
@@ -532,29 +507,26 @@ impl Game {
                 .collect(),
             pieces_played: [0; 7],
             lines_cleared: 0,
-            level: config.gamemode.start_level,
+            level: gamemode.start_level,
             score: 0,
             consecutive_line_clears: 0,
             back_to_back_special_clears: 0,
         };
         Game {
             config,
+            mode: gamemode,
             state,
             rng,
-            modifier: None,
+            modifiers: Vec::new(),
         }
     }
 
-    pub fn set_modifier(&mut self, game_modifier: Option<FnGameModify>) {
-        self.modifier = game_modifier;
+    pub fn forfeit(&mut self) {
+        self.state.end = Some(Err(GameOver::Forfeit))
     }
 
-    pub fn is_finished(&self) -> bool {
-        self.state.finished.is_some()
-    }
-
-    pub fn state(&self) -> &GameState {
-        &self.state
+    pub fn ended(&self) -> bool {
+        self.state.end.is_some()
     }
 
     pub fn config(&self) -> &GameConfig {
@@ -565,21 +537,75 @@ impl Game {
         &mut self.config
     }
 
+    pub fn mode(&self) -> &GameMode {
+        &self.mode
+    }
+
+    pub fn state(&self) -> &GameState {
+        &self.state
+    }
+
+    pub unsafe fn add_modifier(&mut self, game_mod: FnGameMod) {
+        self.modifiers.push(game_mod)
+    }
+
+    fn update_game_end(&mut self) {
+        self.state.end = self.state.end.or_else(||
+            [
+                self.mode.limits.time.and_then(|(win, dur)| (dur <= self.state.game_time).then_some(win)),
+                self.mode.limits.pieces.and_then(|(win, pcs)| (pcs <= self.state.pieces_played.iter().sum()).then_some(win)),
+                self.mode.limits.lines.and_then(|(win, lns)| (lns <= self.state.lines_cleared).then_some(win)),
+                self.mode.limits.level.and_then(|(win, lvl)| (lvl <= self.state.level).then_some(win)),
+                self.mode.limits.score.and_then(|(win, pts)| (pts <= self.state.score).then_some(win)),
+            ].into_iter().find_map(|limit_reached|
+                limit_reached.map(|win|
+                    if win {
+                        Ok(())
+                    } else {
+                        Err(GameOver::ModeLimit)
+                    }
+                )
+            )
+        );
+    }
+
+    fn apply_modifiers(&mut self, feedback_events: &mut Vec<(GameTime, Feedback)>, before_event: Option<InternalEvent>) {
+        for modify in &mut self.modifiers {
+            modify(&mut self.config, &mut self.mode, &mut self.state, feedback_events, before_event);
+        }
+    }
+
     pub fn update(
         &mut self,
         mut new_button_state: Option<ButtonsPressed>,
         update_time: GameTime,
-    ) -> Result<FeedbackEvents, bool> {
+    ) -> Result<FeedbackEvents, ()> {
+        /*
+        Order:
+        - if game already ended, return immediately
+        * find next event
+        - event less-or-equal update point:
+            - allow modifiers
+            - handle event
+            - allow modifiers
+            - update game end state, possibly return immediately
+            - goto *
+        - update point reached:
+            - try adding input events, goto *
+            - else return immediately
+         */
+        // Invalid call: return immediately.
+        if update_time < self.state.game_time {
+            return Err(());
+        }
         // NOTE: Returning an empty Vec is efficient because it won't even allocate (as by Rust API).
         let mut feedback_events = Vec::new();
-        // Handle game over: return immediately.
-        if self.state.finished.is_some() {
-            return Err(true);
-        } else if update_time < self.state.game_time {
-            return Err(false);
-        }
+        if self.ended() {
+            return Ok(feedback_events);
+        };
         // We linearly process all events until we reach the update time.
-        'work_through_events: loop {
+        'event_simulation: loop {
+            self.state.update_counter += 1;
             // Peek the next closest event.
             // SAFETY: `Game` invariants guarantee there's some event.
             let (&event, &event_time) = self
@@ -588,49 +614,19 @@ impl Game {
                 .iter()
                 .min_by_key(|(&event, &event_time)| (event_time, event))
                 .unwrap();
-            // TODO: Hacky modifier.
-            if let Some(modifier) = self.modifier.as_mut() {
-                modifier(
-                    Some(event),
-                    &mut self.config,
-                    &mut self.state,
-                    &mut feedback_events,
-                );
-            }
             // Next event within requested update time, handle event first.
             if event_time <= update_time {
-                // Extract (remove) event and handle it.
-                // SAFETY: `event` key was given to use by the `.min` function.
+                self.apply_modifiers(&mut feedback_events, Some(event));
+                // Remove next event and handle it.
                 self.state.events.remove_entry(&event);
-                // Handle next in-game event.
-                let result = self.handle_event(event, event_time);
+                let new_feedback_events = self.handle_event(event, event_time);
                 self.state.game_time = event_time;
-                match result {
-                    Ok(new_feedback_events) => {
-                        feedback_events.extend(new_feedback_events);
-                        // Check if game has to end.
-                        if let Some(limit) = self.config.gamemode.limit {
-                            let goal_achieved = match limit {
-                                Stat::Lines(lines) => lines <= self.state.lines_cleared,
-                                Stat::Level(level) => level <= self.state.level,
-                                Stat::Score(score) => score <= self.state.score,
-                                Stat::Pieces(pieces) => {
-                                    pieces <= self.state.pieces_played.iter().sum()
-                                }
-                                Stat::Time(timer) => timer <= self.state.game_time,
-                            };
-                            if goal_achieved {
-                                // Game Completed.
-                                self.state.finished = Some(Ok(()));
-                                break 'work_through_events;
-                            }
-                        }
-                    }
-                    Err(gameover) => {
-                        // Game Over.
-                        self.state.finished = Some(Err(gameover));
-                        break 'work_through_events;
-                    }
+                feedback_events.extend(new_feedback_events);
+                self.apply_modifiers(&mut feedback_events, None);
+                // Stop simulation early if event or modifier ended game.
+                self.update_game_end();
+                if self.ended() {
+                    break 'event_simulation
                 }
             // Possibly process user input events now or break out.
             } else {
@@ -639,7 +635,7 @@ impl Game {
                 // Update button inputs.
                 if let Some(buttons_pressed) = new_button_state.take() {
                     if self.state.active_piece_data.is_some() {
-                        Self::handle_input_events(
+                        Self::add_input_events(
                             &mut self.state.events,
                             self.state.buttons_pressed,
                             buttons_pressed,
@@ -648,23 +644,15 @@ impl Game {
                     }
                     self.state.buttons_pressed = buttons_pressed;
                 } else {
-                    break 'work_through_events;
+                    self.update_game_end();
+                    break 'event_simulation
                 }
-            }
-            // TODO: Hacky modifier.
-            if let Some(modifier) = self.modifier.as_mut() {
-                modifier(
-                    None,
-                    &mut self.config,
-                    &mut self.state,
-                    &mut feedback_events,
-                );
             }
         }
         Ok(feedback_events)
     }
 
-    fn handle_input_events(
+    fn add_input_events(
         events: &mut EventMap,
         prev_buttons_pressed: ButtonsPressed,
         next_buttons_pressed: ButtonsPressed,
@@ -745,7 +733,7 @@ impl Game {
         &mut self,
         event: InternalEvent,
         event_time: GameTime,
-    ) -> Result<FeedbackEvents, GameOver> {
+    ) -> FeedbackEvents {
         // Active piece touches the ground before update (or doesn't exist, counts as not touching).
         let mut feedback_events = Vec::new();
         let prev_piece_data = self.state.active_piece_data;
@@ -773,7 +761,8 @@ impl Game {
                 let next_piece = self.config.rotation_system.place_initial(tetromino);
                 // Newly spawned piece conflicts with board - Game over.
                 if !next_piece.fits(&self.state.board) {
-                    return Err(GameOver::BlockOut);
+                    self.state.end = Some(Err(GameOver::BlockOut));
+                    return feedback_events;
                 }
                 self.state.events.insert(InternalEvent::Fall, event_time);
                 if self.state.buttons_pressed[Button::MoveLeft]
@@ -882,7 +871,8 @@ impl Game {
                     .iter()
                     .all(|((_, y), _)| *y >= Self::SKYLINE)
                 {
-                    return Err(GameOver::LockOut);
+                    self.state.end = Some(Err(GameOver::LockOut));
+                    return feedback_events;
                 }
                 self.state.pieces_played[prev_piece.shape] += 1;
                 // Pre-save whether piece was spun into lock position.
@@ -965,7 +955,7 @@ impl Game {
                     }
                 }
                 // Increment level if 10 lines cleared.
-                if self.config.gamemode.increment_level && self.state.lines_cleared % 10 == 0 {
+                if self.mode.increment_level && self.state.lines_cleared % 10 == 0 {
                     self.state.level = self.state.level.saturating_add(1);
                 }
                 self.state.events.insert(
@@ -987,7 +977,7 @@ impl Game {
                 ),
             )
         });
-        Ok(feedback_events)
+        feedback_events
     }
 
     // TODO: THIS is, by far, the ugliest part of this entire program. For the love of what's good, I hope this code can someday be surgically excised and drop-in replaced with elegant code.

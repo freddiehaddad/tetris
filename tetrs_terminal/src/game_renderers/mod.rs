@@ -1,5 +1,4 @@
 pub mod cached;
-pub mod immediate;
 pub mod naive;
 
 use std::io::{self, Write};

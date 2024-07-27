@@ -38,21 +38,21 @@
 
 *Classic game experience with different gamemodes:*
 
-![Screenshot of Tetrs](Gallery/Screenshots/tetrs_screenshot-game.png)
+![Tetrs demo screenshot](Gallery/Screenshots/tetrs_screenshot-game.png)
 
 
 *Smooth rendering on all platforms, configurable controls and more:*
 
-![Animated Demo of Tetrs](Gallery/Gifs/tetrs_rec-main.gif)
+![Tetrs demo GIF](Gallery/Gifs/tetrs_rec-main.gif)
 
 
 **ASCII graphics available:**
 
 <details>
 
-<summary>ASCII Demo GIF</summary>
+<summary>ASCII demo GIF</summary>
 
-![Animated Demo of Tetrs' ASCII graphics](Gallery/Gifs/tetrs_rec-ascii.gif)
+![Tetrs ASCII demo GIF](Gallery/Gifs/tetrs_rec-ascii.gif)
 
 </details>
 
@@ -61,9 +61,9 @@
 > 
 > <details>
 > 
-> <summary> Puzzle Mode Demo GIF </summary>
+> <summary> Puzzle Mode demo GIF </summary>
 > 
-> ![Animated Demo of Tetrs' Puzzle Mode](Gallery/Gifs/tetrs_rec-puzzle.gif)
+> ![Tetrs Puzzle Mode demo GIF](Gallery/Gifs/tetrs_rec-puzzle.gif)
 > 
 > </details>
 
@@ -110,7 +110,7 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
   | `Ctrl`+`C` | Exit program |
   
    </details>
-- (*Advanced:* "No soft drop lock" enabled soft drop not instantly locking pieces on ground even if keyboard enhancements are off, for better experience on typical consoles.)
+- (*Advanced:* "No soft drop lock" enables soft drop not instantly locking pieces on ground even if keyboard enhancements are off, for better experience on typical consoles.)
   
 ### Scoreboard
 - History of games played in the past.
@@ -159,7 +159,7 @@ tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
 
 <summary> Game Configuration Aspects </summary>
 
-- Gamemodes: Are encoded as a combination of *game limit*, *starting level* and *whether to increment level*. See [Gamemodes](#gamemodes).
+- Gamemodes: Are encoded as a combination of *starting level* and *whether to increment level* and *limit* (which can be positive or negative).
 - Rotation Systems: *Ocular Rotation System*, *Classic Rotation System*, *Super Rotation System*. See [Ocular Rotation System](#ocular-rotation-system).
 - Tetromino Generators: *Recency-based*, *Bag*, *Uniformly random*. Default is recency. See [Tetromino Generation](#tetromino-generation).
 - Piece Preview (default 1)
@@ -213,7 +213,7 @@ The game provides some useful feedback events upon every `update`, usually used 
 
 # Project Highlights
 
-While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) serves as good inspiration, I ended up doing a lot of amateur research into a variety of game details (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) as they stand in the modern community, and also asking people about the game. Thank you GrBtAce and KonSola5!
+While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) serves as good inspiration, I ended up doing a lot of amateur research into a variety of game details present in modern games online (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) and also by getting some help from asking people. Thank you GrBtAce and KonSola5!
 
 In the following I detail various interesting concepts I tackled on my way to bringing this project to life.
 
@@ -253,7 +253,7 @@ Considering the sheer size of the franchise and range of players coming from all
 
 <details>
 
-<summary> Creating a Rotation System ... </summary>
+<summary> Creating a Rotation System. </summary>
 
 To summarize, my personal problems with SRS were:
 
@@ -401,68 +401,6 @@ A small patch for this is to check the last time the piece touched the ground, a
 </details>
 
 In the end, a timer-based extended placement lockdown (+ ground continuity fix) is what I used. I have yet to find a nicer system.
-
-
-## Gamemodes
-
-One game modeling question that came up early on was, *"what even is the goal of this game?"*
-
-One answer is "to play as long as possible" (maximize time/lines/pieces), another is "to play as well as possible" (score).
-
-Upon looking at how common gamemodes work I found:
-- There are several game stats one can keep track of, and
-- Commonly found gamemodes can be approximated as a combination of *`(stat which is limited so game can complete)` + `(stat which player aims to optimize)`*.
-
-*Examples:*
-- *'Marathon':* limit Level to 20, try for highest score.
-- *'Sprint'* / *'40 lines'*: limit lines to 40, try for lowest time.
-- *'Ultra'* / *'Time Trial'*: limit time to 2-3min, try for highest score / most lines.
-
-The real implementation additionally stores the (speed) level to start at, and whether clearing lines increments the level.
-
-> [!NOTE]
-> Given one stat, how do we know whether we want to maximize or minimize another arbitrary stat?
-> I may be overlooking a simpler pattern, but it seems one can order all stats linearly, and given a stat to be fixed/limited, any other stat is maximized/minimized directly depending on whether it's further down/up the sequence:
-> <details>
-> 
-> <summary>Gamemode Stat Relation Table</summary>
-> 
-> | name | [finss](https://harddrop.com/wiki/Finesse) | time  | piecs | lines | level | score |
-> | ---- | ----- | ----- | ----- | ----- | ----- | ----- |
-> |      |  fix  |  MAX  |       |       |       |
-> |      |       |       |  MAX  |       |       |
-> |      |  fix  |       |       |  MAX  |       |
-> |      |  fix  |       |       |       |  MAX  |
-> |      |  fix  |       |       |       |       |  MAX
-> |      |  MIN  |  fix  |       |       |       |
-> |      |       |  fix  |  MAX  |       |       |
-> | *'Ultra*' |  |  fix  |       |  MAX  |       |
-> |      |       |  fix  |       |       |  MAX  |
-> |      |       |  fix  |       |       |       |  MAX
-> |      |  MIN  |       |  fix  |       |       |
-> |      |       |  MIN  |  fix  |       |       |
-> |      |       |       |  fix  |  MAX  |       |
-> |      |       |       |  fix  |       |  MAX  |
-> |      |       |       |  fix  |       |       |  MAX
-> |      |  MIN  |       |       |  fix  |       |
-> | *'Sprint'* | |  MIN  |       |  fix  |       |
-> |      |       |       |  MIN  |  fix  |       |
-> |      |       |       |       |  fix  |  MAX  |
-> |      |       |       |       |  fix  |       |  MAX
-> |      |  MIN  |       |       |       |  fix  |
-> |      |       |  MIN  |       |       |  fix  |
-> |      |       |       |  MIN  |       |  fix  |
-> |      |       |       |       |  MIN  |  fix  |
-> | *'Marathon'* | |     |       |       |  fix  |  MAX
-> |      |  MIN  |       |       |       |       |  fix
-> |      |       |  MIN  |       |       |       |  fix
-> |      |       |       |  MIN  |       |       |  fix
-> |      |       |       |       |  MIN  |       |  fix
-> |      |       |       |       |       |  MIN  |  fix
-> 
-> </details>
-
-> *Wait, so how does 'Puzzle Mode' work?* - I can tell you: with some not-so-secret internal state leakage and a large pinch of state modeling jank via [`Game::set_modifier(...)`](tetrs_terminal/src/puzzle_mode.rs).
 
 
 ## Scoring

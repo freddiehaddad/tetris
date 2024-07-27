@@ -107,13 +107,13 @@ impl<'a, 'b> Iterator for TetrominoIterator<'a, 'b> {
                 Some(idx.try_into().unwrap())
             }
             TetrominoGenerator::Recency { last_generated } => {
-                /* Choice among these weighing functions:
-                 * `|x| x; // x -> x`
-                 * `|&x| f64::from(x).powf(1.5); // x -> x^1.5`
-                 * `|x| x * x; // x -> x^2`
-                 * `|&x| f64::from(x).exp() - 1.0; // x -> exp x - 1`
-                 */
-                let weighing = |x| x * x;
+                // let weighing = |x| x;
+                // let weighing = |&x| f64::from(x).powf(1.5);
+                // let weighing = |x| x * x;
+                let weighing = |&x| f64::from(x).powf(2.5);
+                // let weighing = |&x| f64::from(x).powf(std::f64::consts::E);
+                // let weighing = |x| x * x * x;
+                // let weighing = |&x| f64::from(x).exp() - 1.0;
                 let weights = last_generated.iter().map(weighing);
                 // SAFETY: `weights` will always be non-zero due to `weighing`.
                 let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);

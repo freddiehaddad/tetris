@@ -1,16 +1,13 @@
-use std::{collections::VecDeque, num::NonZeroU32, time::Duration};
+use std::{collections::VecDeque, num::NonZeroU32};
 
 use tetrs_engine::{
-    Feedback, FeedbackEvents, Game, GameConfig, GameOver, GameState, Gamemode, InternalEvent, Stat,
-    Tetromino,
+    Feedback, FeedbackEvents, Game, GameConfig, GameMode, GameOver, GameState, InternalEvent, Limits, Tetromino
 };
 
+const MAX_STAGE_ATTEMPTS: usize = 3;
+const SPEED_LEVEL: u32 = 3;
+
 pub fn make_game() -> Game {
-    const SPEED_LEVEL: NonZeroU32 = NonZeroU32::MIN.saturating_add(1);
-    const MAX_PUZZLE_ATTEMPTS: usize = 3;
-    let mut init = false;
-    #[allow(non_snake_case)]
-    // SAFETY: 255 > 0.
     #[rustfmt::skip]
     let puzzles = [
         /* Puzzle template.
@@ -22,27 +19,27 @@ pub fn make_game() -> Game {
         ], VecDeque::from([Tetromino::I,])),
         */
         // I-spins.
-        ("1.1 I-spin", vec![
+        ("I-spin", vec![
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OOOO    OO",
             ], VecDeque::from([Tetromino::I,Tetromino::I])),
-        ("1.2 I-spin", vec![
+        ("I-spin", vec![
             b"OOOOO  OOO",
             b"OOOOO OOOO",
             b"OOOOO OOOO",
             b"OO    OOOO",
             ], VecDeque::from([Tetromino::I,Tetromino::J])),
-        ("1.3 I-spin Triple", vec![
+        ("I-spin Triple", vec![
             b"OO  O   OO",
             b"OO    OOOO",
             b"OOOO OOOOO",
             b"OOOO OOOOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::I,Tetromino::L,Tetromino::O,])),
-        ("1.4 I-spin trial", vec![
+        ("I-spin trial", vec![
             b"OOOOO  OOO",
             b"OOO OO OOO",
             b"OOO OO OOO",
@@ -50,17 +47,17 @@ pub fn make_game() -> Game {
             b"OOO OOOOOO",
             ], VecDeque::from([Tetromino::I,Tetromino::I,Tetromino::L,])),
         // S/Z-spins.
-        ("2.1 S-spin", vec![
+        ("S-spin", vec![
             b"OOOO  OOOO",
             b"OOO  OOOOO",
             ], VecDeque::from([Tetromino::S,])),
-        ("2.2 S-spins", vec![
+        ("S-spins", vec![
             b"OOOO    OO",
             b"OOO    OOO",
             b"OOOOO  OOO",
             b"OOOO  OOOO",
             ], VecDeque::from([Tetromino::S,Tetromino::S,Tetromino::S,])),
-        ("2.3 Z-spin galore", vec![
+        ("Z-spin galore", vec![
             b"O  OOOOOOO",
             b"OO  OOOOOO",
             b"OOO  OOOOO",
@@ -70,7 +67,7 @@ pub fn make_game() -> Game {
             b"OOOOOOO  O",
             b"OOOOOOOO  ",
             ], VecDeque::from([Tetromino::Z,Tetromino::Z,Tetromino::Z,Tetromino::Z,])),
-        ("2.4 SuZ-spin trial", vec![
+        ("SuZ-spin trial", vec![
             b"OOOO  OOOO",
             b"OOO  OOOOO",
             b"OO    OOOO",
@@ -79,46 +76,46 @@ pub fn make_game() -> Game {
             b"OO  OO  OO",
             ], VecDeque::from([Tetromino::S,Tetromino::S,Tetromino::I,Tetromino::I,Tetromino::Z,])),
         // L/J-spins.
-        ("3.1 J-spin", vec![
+        ("J-spin", vec![
             b"OO     OOO",
             b"OOOOOO OOO",
             b"OOOOO  OOO",
             ], VecDeque::from([Tetromino::J,Tetromino::I,])),
-        ("3.2 L/J-spin", vec![
+        ("L/J-spin", vec![
             b"OO      OO",
             b"OO OOOO OO",
             b"OO  OO  OO",
             ], VecDeque::from([Tetromino::J,Tetromino::L,Tetromino::I])),
-        ("3.3 L-spin", vec![
+        ("L-spin", vec![
             b"OOOOO OOOO",
             b"OOO   OOOO",
             ], VecDeque::from([Tetromino::L,])),
-        ("3.4 L/J-spin trial", vec![
+        ("L/J-spin trial", vec![
             b"O   OO   O",
             b"O O OO O O",
             b"O   OO   O",
             ], VecDeque::from([Tetromino::J,Tetromino::L,Tetromino::J,Tetromino::L,])),
         // L/J-turns.
-        ("4.1 L-turn", vec![
+        ("L-turn", vec![
             b"OOOO  OOOO",
             b"OOOO  OOOO",
             b"OOOO   OOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::L,Tetromino::O,])),
-        ("4.3 77-turn", vec![
+        ("77-turn", vec![
             b"OOOO  OOOO",
             b"OOOOO OOOO",
             b"OOO   OOOO",
             b"OOOO OOOOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::L,Tetromino::L,])),
-        ("4.2 L-turn revisited", vec![
+        ("L-turn revisited", vec![
             b"OOOOO  OOO",
             b"OOO    OOO",
             b"OOOO OOOOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::L,Tetromino::O,])),
-        ("4.4 L-turn trial", vec![
+        ("L-turn trial", vec![
             b"OOOO  OOOO",
             b"OOOO  OOOO",
             b"OO     OOO",
@@ -126,28 +123,28 @@ pub fn make_game() -> Game {
             b"OOO OOOOOO",
             ], VecDeque::from([Tetromino::L,Tetromino::L,Tetromino::O,])),
         // T-spins.
-        ("5.1 T-spin", vec![
+        ("T-spin", vec![
             b"OOOO    OO",
             b"OOO   OOOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::T,Tetromino::I])),
-        ("5.2 T-spin", vec![
+        ("T-spin", vec![
             b"OOOO    OO",
             b"OOO   OOOO",
             b"OOOO OOOOO",
             ], VecDeque::from([Tetromino::T,Tetromino::L])),
-        ("5.3 T-turn", vec![
+        ("T-turn", vec![
             b"OOO   OOOO",
             b"OOOO  OOOO",
             b"OOOO   OOO",
             ], VecDeque::from([Tetromino::T,Tetromino::T])),
-        ("5.4 Tetrs T-spin", vec![
+        ("Tetrs T-spin", vec![
             b"OOO  OOOOO",
             b"OOO  OOOOO",
             b"OOOO   OOO",
             b"OOOOO OOOO",
             ], VecDeque::from([Tetromino::T,Tetromino::O])),
-        ("5.5 Tetrs T-spin Triple", vec![
+        ("Tetrs T-spin Triple", vec![
             b"OOO   OOOO",
             b"OOO  OOOOO",
             b"OOOO   OOO",
@@ -158,31 +155,36 @@ pub fn make_game() -> Game {
     ];
     let mut current_puzzle = 0;
     let mut current_puzzle_attempt = 0;
-    let mut current_puzzle_ptimelimit = 0;
-    let puzzles_len = puzzles.len();
-    let game_modifier = move |upcoming_event: Option<InternalEvent>,
-                              config: &mut GameConfig,
-                              state: &mut GameState,
-                              feedback_events: &mut FeedbackEvents| {
-        // Initialize internal game state.
-        if !init {
-            config.preview_count = 1;
-            init = true;
+    let mut current_puzzle_piececnt_limit = 0;
+    let puzzle_num = NonZeroU32::try_from(u32::try_from(puzzles.len()).unwrap()).unwrap();
+    let puzzle_modifier = move |
+            config: &mut GameConfig,
+            _mode: &mut GameMode,
+            state: &mut GameState,
+            feedback_events: &mut FeedbackEvents,
+            before_event: Option<InternalEvent>,
+    | {
+        let game_piececnt = usize::try_from(state.pieces_played.iter().sum::<u32>()).unwrap();
+
+        if before_event.is_some() {
+            state.level = NonZeroU32::try_from(SPEED_LEVEL).unwrap();
+        } else {
+            state.level = NonZeroU32::try_from(u32::try_from(current_puzzle).unwrap()).unwrap();
+            // Delete accolades.
+            feedback_events.retain(|evt| !matches!(evt, (_, Feedback::Accolade { .. })));
         }
-        // Puzzle may have failed.
-        let game_ptimestamp = usize::try_from(state.pieces_played.iter().sum::<u32>()).unwrap();
-        // All pieces for this puzzle were used up, handle puzzle outcome.
-        if upcoming_event == Some(InternalEvent::Spawn)
-            && game_ptimestamp == current_puzzle_ptimelimit
-        {
+        if before_event != Some(InternalEvent::Spawn) {
+            return;
+        }
+        // End of puzzle / start of new one.
+        if game_piececnt == current_puzzle_piececnt_limit {
             let puzzle_done = state
                 .board
                 .iter()
                 .all(|line| line.iter().all(|cell| cell.is_none()));
-            if !puzzle_done && current_puzzle_attempt >= MAX_PUZZLE_ATTEMPTS {
+            if !puzzle_done && current_puzzle_attempt >= MAX_STAGE_ATTEMPTS {
                 // Run out of attempts, game over.
-                state.level = NonZeroU32::try_from(u32::try_from(current_puzzle).unwrap()).unwrap();
-                state.finished = Some(Err(GameOver::Fail));
+                state.end = Some(Err(GameOver::ModeLimit));
             } else {
                 // Change puzzle number or repeat attempt.
                 if puzzle_done {
@@ -193,19 +195,17 @@ pub fn make_game() -> Game {
                 }
                 if current_puzzle == puzzles.len() {
                     // Done with all puzzles, game completed.
-                    state.level =
-                        NonZeroU32::try_from(u32::try_from(puzzles_len).unwrap()).unwrap();
-                    state.finished = Some(Ok(()));
+                    state.end = Some(Ok(()));
                 } else {
                     // Load in new puzzle.
                     let (puzzle_name, puzzle_lines, puzzle_pieces) = &puzzles[current_puzzle];
-                    current_puzzle_ptimelimit = game_ptimestamp + puzzle_pieces.len();
+                    current_puzzle_piececnt_limit = game_piececnt + puzzle_pieces.len();
                     state.consecutive_line_clears = 0;
                     // Game message.
                     feedback_events.push((
                         state.game_time,
                         Feedback::Message(if current_puzzle_attempt == 1 {
-                            format!("Stage: {}", puzzle_name.to_ascii_uppercase())
+                            format!("Stage {}: {}", 1+current_puzzle, puzzle_name.to_ascii_uppercase())
                         } else {
                             format!(
                                 "{}.RETRY ({})",
@@ -238,19 +238,15 @@ pub fn make_game() -> Game {
                     }
                 }
             }
-        } else if upcoming_event.is_none() {
-            feedback_events.retain(|evt| !matches!(evt, (_, Feedback::Accolade { .. })));
         }
+        config.preview_count = current_puzzle_piececnt_limit - game_piececnt;
     };
-    let mut game = Game::with_gamemode(Gamemode::custom(
-        "Puzzle".to_string(),
-        SPEED_LEVEL,
-        false,
-        Some(Stat::Level(
-            NonZeroU32::try_from(u32::try_from(puzzles_len).unwrap()).unwrap(),
-        )),
-        Stat::Time(Duration::ZERO),
-    ));
-    game.set_modifier(Some(Box::new(game_modifier)));
+    let mut game = Game::new(GameMode {
+        name: "Puzzle".to_string(),
+        start_level: NonZeroU32::MIN.saturating_add(1),
+        increment_level: false,
+        limits: Limits { level: Some((true, puzzle_num)), ..Default::default() },
+    });
+    unsafe { game.add_modifier(Box::new(puzzle_modifier)) };
     game
 }

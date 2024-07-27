@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::BinaryHeap,
+    collections::VecDeque,
     fmt::Debug,
     io::{self, Write},
     time::Duration,
@@ -13,8 +13,8 @@ use crossterm::{
     terminal, QueueableCommand,
 };
 use tetrs_engine::{
-    Button, Coord, Feedback, FeedbackEvents, Game, GameConfig, GameState, GameTime, Orientation,
-    Stat, Tetromino, TileTypeID,
+    Button, Coord, Feedback, FeedbackEvents, Game, GameState, GameTime, Orientation,
+    Tetromino, TileTypeID,
 };
 
 use crate::{
@@ -34,7 +34,7 @@ struct ScreenBuf {
 pub struct Renderer {
     screen: ScreenBuf,
     visual_events: Vec<(GameTime, Feedback, bool)>,
-    messages: BinaryHeap<(GameTime, String)>,
+    messages: VecDeque<(GameTime, String)>,
     hard_drop_tiles: Vec<(GameTime, Coord, usize, TileTypeID, bool)>,
 }
 
@@ -169,7 +169,8 @@ impl GameScreenRenderer for Renderer {
         }
         let GameState {
             game_time,
-            finished: _,
+            update_counter: _,
+            end: _,
             events: _,
             buttons_pressed: _,
             board,
@@ -182,51 +183,33 @@ impl GameScreenRenderer for Renderer {
             consecutive_line_clears: _,
             back_to_back_special_clears: _,
         } = game.state();
-        let GameConfig { gamemode, .. } = game.config();
-        // Screen: some helpers.
-        let stat_name = |stat| match stat {
-            Stat::Lines(_) => "Lines",
-            Stat::Level(_) => "Levels",
-            Stat::Score(_) => "Score",
-            Stat::Pieces(_) => "Pieces",
-            Stat::Time(_) => "Time",
-        };
         // Screen: some titles.
-        let mode_name = gamemode.name.to_ascii_uppercase();
+        let mode_name = game.mode().name.to_ascii_uppercase();
         let mode_name_space = mode_name.len().max(14);
-        let opti_name = stat_name(gamemode.optimize);
-        let opti_value = match gamemode.optimize {
-            Stat::Lines(_) => format!("{}", lines_cleared),
-            Stat::Level(_) => format!("{}", level),
-            Stat::Score(_) => format!("{}", score),
-            Stat::Pieces(_) => format!("{}", pieces_played.iter().sum::<u32>()),
-            Stat::Time(_) => format_duration(*game_time),
-        };
-        let (goal_name, goal_value) = if let Some(stat) = gamemode.limit {
-            (
-                format!("{} left:", stat_name(stat)),
-                match stat {
-                    Stat::Lines(lns) => format!("{}", lns.saturating_sub(*lines_cleared)),
-                    Stat::Level(lvl) => format!("{}", lvl.get().saturating_sub(level.get())),
-                    Stat::Score(pts) => format!("{}", pts.saturating_sub(*score)),
-                    Stat::Pieces(pcs) => {
-                        format!("{}", pcs.saturating_sub(pieces_played.iter().sum::<u32>()))
-                    }
-                    Stat::Time(dur) => format_duration(dur.saturating_sub(*game_time)),
-                },
-            )
-        } else {
-            ("".to_string(), "".to_string())
+        let (goal_name, goal_value) = [
+            game.mode().limits.time.map(|(_, max_dur)| ("Time left:", format_duration(max_dur.saturating_sub(*game_time)))),
+            game.mode().limits.pieces.map(|(_, max_pcs)| ("Pieces remaining:", max_pcs.saturating_sub(pieces_played.iter().sum::<u32>()).to_string())),
+            game.mode().limits.lines.map(|(_, max_lns)| ("Lines left to clear:", max_lns.saturating_sub(*lines_cleared).to_string())),
+            game.mode().limits.level.map(|(_, max_lvl)| ("Levels remaining:", max_lvl.get().saturating_sub(level.get()).to_string())),
+            game.mode().limits.score.map(|(_, max_pts)| ("Points to score:", max_pts.saturating_sub(*score).to_string())),
+        ].into_iter().find_map(|limit_text| limit_text).unwrap_or_default();
+        let (focus_name, focus_value) = match game.mode().name.as_str() {
+            "Marathon" => ("Score:", score.to_string()),
+            "40-Lines" => ("Time taken:", format_duration(*game_time)),
+            "Time Trial" => ("Lines cleared:", lines_cleared.to_string()),
+            "Master" => ("Lines cleared:", lines_cleared.to_string()),
+            "Puzzle" => ("", "".to_string()),
+            _ => ("Lines cleared:", lines_cleared.to_string()),
         };
         let key_icon_pause = format_key(KeyCode::Esc);
-        let key_icons_moveleft = format_keybinds(Button::MoveLeft, &app.settings.keybinds);
-        let key_icons_moveright = format_keybinds(Button::MoveRight, &app.settings.keybinds);
+        let key_icons_moveleft = format_keybinds(Button::MoveLeft, &app.settings().keybinds);
+        let key_icons_moveright = format_keybinds(Button::MoveRight, &app.settings().keybinds);
         let mut key_icons_move = format!("{key_icons_moveleft} {key_icons_moveright}");
-        let key_icons_rotateleft = format_keybinds(Button::RotateLeft, &app.settings.keybinds);
-        let key_icons_rotateright = format_keybinds(Button::RotateRight, &app.settings.keybinds);
+        let key_icons_rotateleft = format_keybinds(Button::RotateLeft, &app.settings().keybinds);
+        let key_icons_rotateright = format_keybinds(Button::RotateRight, &app.settings().keybinds);
         let mut key_icons_rotate = format!("{key_icons_rotateleft} {key_icons_rotateright}");
-        let key_icons_dropsoft = format_keybinds(Button::DropSoft, &app.settings.keybinds);
-        let key_icons_drophard = format_keybinds(Button::DropHard, &app.settings.keybinds);
+        let key_icons_dropsoft = format_keybinds(Button::DropSoft, &app.settings().keybinds);
+        let key_icons_drophard = format_keybinds(Button::DropHard, &app.settings().keybinds);
         let mut key_icons_drop = format!("{key_icons_dropsoft} {key_icons_drophard}");
         // JESUS Christ https://users.rust-lang.org/t/truncating-a-string/77903/9 :
         let eleven = key_icons_move
@@ -263,17 +246,17 @@ impl GameScreenRenderer for Renderer {
         // Screen: draw.
         #[allow(clippy::useless_format)]
         #[rustfmt::skip]
-        let base_screen = if app.settings.ascii_graphics {
+        let base_screen = if app.settings().ascii_graphics {
             vec![
                 format!("                                                            ", ),
                 format!("                       +- - - - - - - - - - +{:-^w$       }+", "mode", w=mode_name_space),
                 format!("   ALL STATS           |                    |{: ^w$       }|", mode_name, w=mode_name_space),
                 format!("   ----------          |                    +{:-^w$       }+", "", w=mode_name_space),
-                format!("   Level: {:<13       }|                    |  {          }:", level, opti_name),
-                format!("   Score: {:<13       }|                    |{:^15         }", score, opti_value),
+                format!("   Level: {:<13       }|                    |  {          }:", level, goal_name),
+                format!("   Score: {:<13       }|                    |{:^15         }", score, goal_value),
                 format!("   Lines: {:<13       }|                    |               ", lines_cleared),
-                format!("                       |                    |  {           }", goal_name),
-                format!("   Time elapsed        |                    |{:^15         }", goal_value),
+                format!("                       |                    |  {          }:", focus_name),
+                format!("   Time elapsed        |                    |{:^15         }", focus_value),
                 format!("    {:<19             }|                    |               ", format_duration(*game_time)),
                 format!("                       |                    |-----next-----+", ),
                 format!("   PIECES              |                    |              |", ),
@@ -296,11 +279,11 @@ impl GameScreenRenderer for Renderer {
                 format!("                       ╓╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╥{:─^w$       }┐", "mode", w=mode_name_space),
                 format!("   ALL STATS           ║                    ║{: ^w$       }│", mode_name, w=mode_name_space),
                 format!("   ─────────╴          ║                    ╟{:─^w$       }┘", "", w=mode_name_space),
-                format!("   Level: {:<13       }║                    ║  {          }:", level, opti_name),
-                format!("   Score: {:<13       }║                    ║{:^15         }", score, opti_value),
+                format!("   Level: {:<13       }║                    ║  {           }", level, goal_name),
+                format!("   Score: {:<13       }║                    ║{:^15         }", score, goal_value),
                 format!("   Lines: {:<13       }║                    ║               ", lines_cleared),
-                format!("                       ║                    ║  {           }", goal_name),
-                format!("   Time elapsed        ║                    ║{:^15         }", goal_value),
+                format!("                       ║                    ║  {           }", focus_name),
+                format!("   Time elapsed        ║                    ║{:^15         }", focus_value),
                 format!("    {:<19             }║                    ║               ", format_duration(*game_time)),
                 format!("                       ║                    ║─────next─────┐", ),
                 format!("   PIECES              ║                    ║              │", ),
@@ -325,7 +308,7 @@ impl GameScreenRenderer for Renderer {
         let pos_board = |(x, y)| (x_board + 2 * x, y_board + Game::SKYLINE - y);
         // Board: helpers.
         #[rustfmt::skip]
-        let tile_color = if app.settings.ascii_graphics {
+        let tile_color = if app.settings().ascii_graphics {
             |_tile: TileTypeID| None
         } else {
             |tile: TileTypeID| {
@@ -363,7 +346,7 @@ impl GameScreenRenderer for Renderer {
         }
         self.hard_drop_tiles.retain(|elt| elt.4);
         // Board: draw fixed tiles.
-        let (tile_locked, tile_ghost, tile_active, tile_preview) = if app.settings.ascii_graphics {
+        let (tile_locked, tile_ghost, tile_active, tile_preview) = if app.settings().ascii_graphics {
             ("##", "::", "[]", "[]")
         } else {
             ("██", "░░", "▓▓", "▒▒")
@@ -416,7 +399,7 @@ impl GameScreenRenderer for Renderer {
             match event {
                 Feedback::PieceLocked(piece) => {
                     #[rustfmt::skip]
-                    let lock_anim = if app.settings.ascii_graphics {
+                    let lock_anim = if app.settings().ascii_graphics {
                         [
                             ( 50, "()"),
                             ( 75, "()"),
@@ -453,7 +436,7 @@ impl GameScreenRenderer for Renderer {
                         *relevant = false;
                         continue;
                     }
-                    let line_clear_frames = if app.settings.ascii_graphics {
+                    let line_clear_frames = if app.settings().ascii_graphics {
                         [
                             "$$$$$$$$$$$$$$$$$$$$",
                             "$$$$$$$$$$$$$$$$$$$$",
@@ -550,8 +533,7 @@ impl GameScreenRenderer for Renderer {
                         20 => "Vigintuple",
                         21 => "Kirbtris",
                         _ => "unreachable",
-                    }
-                    .to_ascii_uppercase();
+                    }.to_string();
                     if *lineclears <= 4 {
                         action_stats.0[usize::try_from(*lineclears).unwrap()] += 1;
                     } else {
@@ -564,11 +546,11 @@ impl GameScreenRenderer for Renderer {
                     if *back_to_back > 1 {
                         strs.push(format!("({back_to_back}.B2B)"));
                     }
-                    self.messages.push((*event_time, strs.join(" ")));
+                    self.messages.push_front((*event_time, strs.join(" ")));
                     *relevant = false;
                 }
                 Feedback::Message(msg) => {
-                    self.messages.push((*event_time, msg.clone()));
+                    self.messages.push_front((*event_time, msg.clone()));
                     *relevant = false;
                 }
             }
@@ -579,8 +561,8 @@ impl GameScreenRenderer for Renderer {
             let pos = (x_messages, y_messages + y);
             self.screen.buf_str(message, None, pos);
         }
-        self.messages.retain(|(event_time, _message)| {
-            game_time.saturating_sub(*event_time) < Duration::from_millis(6000)
+        self.messages.retain(|(timestamp, _message)| {
+            game_time.saturating_sub(*timestamp) < Duration::from_millis(10000)
         });
         self.screen.flush(&mut app.term)
     }
