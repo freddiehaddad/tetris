@@ -299,7 +299,8 @@ Although one starts to spot vague rotational symmetries as intended), the kicks 
 </details>
 
 In the end I'm happy with how this custom rotation system turned out.
-*(\*E.g. it uses piece symmetries to store only half the kicks.*
+It vaguely follows the mantra "if the rotation looks like it could reasonably work visually, it should" (+ some added kicks for flexibility and fun).
+*(\*it even uses all piece symmetries to store only half the kicks!)*
 
 On the fun side, *Puzzle Mode* in the frontend application is intended to show off some of the spins possible with this system.
 You should try it out; I somehow still managed to include a (decently sensible) *T-Spin Triple!*
