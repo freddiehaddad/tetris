@@ -216,7 +216,7 @@ The game provides some useful feedback events upon every `update`, usually used 
 
 While the [2009 Tetris Guideline](https://tetris.wiki/Tetris_Guideline) serves as good inspiration, I ended up doing a lot of amateur research into a variety of game details present in modern games online (thank you [Tetris Wiki](https://tetris.wiki/) and [HardDrop](https://harddrop.com/wiki)!) and also by getting some help from asking people. Thank you GrBtAce and KonSola5!
 
-In the following I detail various interesting concepts I tackled on my way to bringing this project to life.
+In the following I detail various interesting concepts I tackled on my way to bringing this project to life - I was essentially new to Tetris and could not remember playing it more than a couple minutes in the last decade, so I had to figure all this out from scratch!
 
 
 ## Tetromino Generation
@@ -474,12 +474,13 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 
 ## Miscellaneous Author Notes
 
-This project allowed me to have first proper learning experience with programming a larger Rust project, an interactive game (in the console no less), and the intricacies of most important tetrs mechanics themselves.
+In the two very intense weeks of developing this project I've had my first proper learning experiences with programming a larger Rust project, an interactive game (in the console no less), and the intricacies of modern tetrs mechanics themselves.
 
-Gamedev-wise I can mention mostly learning about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/) and finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate).
+Gamedev-wise I can mention learning about the [modern](https://gafferongames.com/post/fix_your_timestep/) [game](http://gameprogrammingpatterns.com/game-loop.html) [loop](https://dewitters.com/dewitters-gameloop/);
+Finding the proper abstraction for `Game::update` (allow arbitrary-time user input, make updates decoupled from framerate) was still hard.
 
-Frontend-wise I may have used [Ratatui](https://crates.io/crates/ratatui/), but I decided to just do some basic menus myself using the trusty [Crossterm](https://crates.io/crates/crossterm) for cross-platform terminal manipulation.
-Next time I'll use a TUI crate so as to sleep more peacefully at night not having to think about the ~horrible ad-hoc code I wrote (please don't judge :c )~
+Frontend-wise I may have used [Ratatui](https://crates.io/crates/ratatui/), but decided to just do some basic menus myself using the trusty [Crossterm](https://crates.io/crates/crossterm) for cross-platform terminal manipulation.
+Next time I'd use a TUI crate so as to sleep more peacefully at night not having to think about the ~horrible ad-hoc code I wrote for the interface~
 
 On the Rust side of things I learned about;
 - Some [coding](https://docs.kernel.org/rust/coding-guidelines.html) [style](https://doc.rust-lang.org/nightly/style-guide/) [guidelines](https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/style.md#getters--setters) & `cargo fmt` (~`#[rustfmt::skip]`~),
