@@ -88,7 +88,8 @@
 For more technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
   
 ### Settings
-- Tile graphics (colored Unicode <-> oldschool, monochrome ASCII).
+- Graphics (ASCII, Unicode).
+- Coloring (Monochrome; full RGB Colors; 16 Colors (should work on all consoles)).
 - Adjustable render rate and toggleable FPS counter.
 - Rotation systems: *Ocular*, *Classic* and *Super*.
 - Configurable controls.
