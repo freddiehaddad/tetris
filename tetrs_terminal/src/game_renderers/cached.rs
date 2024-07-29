@@ -460,8 +460,11 @@ impl GameScreenRenderer for Renderer {
         for (y, line) in board.iter().enumerate().take(21).rev() {
             for (x, cell) in line.iter().enumerate() {
                 if let Some(tile_type_id) = cell {
-                    self.screen
-                        .buffer_str(tile_fixed, tile_color(*tile_type_id), pos_board((x, y)));
+                    self.screen.buffer_str(
+                        tile_fixed,
+                        tile_color(*tile_type_id),
+                        pos_board((x, y)),
+                    );
                 }
             }
         }
@@ -470,15 +473,21 @@ impl GameScreenRenderer for Renderer {
             // Draw ghost piece.
             for (tile_pos, tile_type_id) in active_piece.well_piece(board).tiles() {
                 if tile_pos.1 <= Game::SKYLINE {
-                    self.screen
-                        .buffer_str(tile_ghost, tile_color(tile_type_id), pos_board(tile_pos));
+                    self.screen.buffer_str(
+                        tile_ghost,
+                        tile_color(tile_type_id),
+                        pos_board(tile_pos),
+                    );
                 }
             }
             // Draw active piece.
             for (tile_pos, tile_type_id) in active_piece.tiles() {
                 if tile_pos.1 <= Game::SKYLINE {
-                    self.screen
-                        .buffer_str(tile_active, tile_color(tile_type_id), pos_board(tile_pos));
+                    self.screen.buffer_str(
+                        tile_active,
+                        tile_color(tile_type_id),
+                        pos_board(tile_pos),
+                    );
                 }
             }
         }

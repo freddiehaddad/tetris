@@ -1,9 +1,11 @@
 use std::{
     collections::HashMap,
+    env,
     fmt::Debug,
     fs::File,
     io::{self, Read, Write},
     num::NonZeroU32,
+    path::PathBuf,
     sync::mpsc,
     time::{Duration, Instant},
 };
@@ -120,6 +122,7 @@ pub struct Settings {
     pub graphics_color: GraphicsColor,
     pub rotation_system: RotationSystem,
     pub no_soft_drop_lock: bool,
+    pub save_data_on_exit: bool,
 }
 
 // For the "New Game" menu.
@@ -156,11 +159,20 @@ pub struct App<T: Write> {
 impl<T: Write> Drop for App<T> {
     fn drop(&mut self) {
         // TODO: Handle errors?
-        // let _ = self.save_local();
-        if let Err(_e) = self.save_local() {
-            // TODO: Make this debuggable.
-            //eprintln!("Could not save settings this time: {e} ");
-            //std::thread::sleep(Duration::from_secs(4));
+        let savefile_path = Self::savefile_path();
+        // If the user wants their data stored, try to do so.
+        if self.settings.save_data_on_exit {
+            if let Err(_e) = self.store_local(savefile_path) {
+                // TODO: Make this debuggable.
+                //eprintln!("Could not save settings this time: {e} ");
+                //std::thread::sleep(Duration::from_secs(4));
+            }
+        // Otherwise check if savefile exists.
+        } else if let Ok(exists) = savefile_path.try_exists() {
+            // Delete it for them if it does.
+            if exists {
+                let _ = std::fs::remove_file(savefile_path);
+            }
         }
         // Console epilogue: de-initialization.
         if self.kitty_enabled {
@@ -176,7 +188,8 @@ impl<T: Write> Drop for App<T> {
 impl<T: Write> App<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
-    pub const SAVE_FILE: &'static str = "./tetrs_terminal.json";
+
+    pub const SAVEFILE_NAME: &'static str = ".tetrs_terminal.json";
 
     pub fn new(mut terminal: T, fps: Option<u32>) -> Self {
         // Console prologue: Initializion.
@@ -210,6 +223,7 @@ impl<T: Write> App<T> {
                 graphics_color: GraphicsColor::ColorRGB,
                 rotation_system: RotationSystem::Ocular,
                 no_soft_drop_lock: !kitty_enabled,
+                save_data_on_exit: false,
             },
             custom_game_settings: CustomModeSettings {
                 name: "Custom Mode".to_string(),
@@ -232,7 +246,38 @@ impl<T: Write> App<T> {
         app
     }
 
-    fn save_local(&mut self) -> io::Result<()> {
+    fn savefile_path() -> PathBuf {
+        let home_var = env::var("HOME");
+        #[allow(clippy::collapsible_else_if)]
+        if cfg!(target_os = "windows") {
+            if let Ok(appdata_path) = env::var("APPDATA") {
+                PathBuf::from(appdata_path)
+            } else {
+                PathBuf::from(".")
+            }
+        } else if cfg!(target_os = "linux") {
+            if let Ok(home_path) = home_var {
+                PathBuf::from(home_path).join(".config")
+            } else {
+                PathBuf::from(".")
+            }
+        } else if cfg!(target_os = "macos") {
+            if let Ok(home_path) = home_var {
+                PathBuf::from(home_path).join("Library/Application Support")
+            } else {
+                PathBuf::from(".")
+            }
+        } else {
+            if let Ok(home_path) = home_var {
+                PathBuf::from(home_path)
+            } else {
+                PathBuf::from(".")
+            }
+        }
+        .join(Self::SAVEFILE_NAME)
+    }
+
+    fn store_local(&mut self, path: PathBuf) -> io::Result<()> {
         self.past_games = self
             .past_games
             .iter()
@@ -244,14 +289,14 @@ impl<T: Write> App<T> {
             .collect::<Vec<_>>();
         let save_state = (&self.settings, &self.custom_game_settings, &self.past_games);
         let save_str = serde_json::to_string(&save_state)?;
-        let mut file = File::create(Self::SAVE_FILE)?;
+        let mut file = File::create(path)?;
         // TODO: Handle error?
         let _ = file.write(save_str.as_bytes())?;
         Ok(())
     }
 
     fn load_local(&mut self) -> io::Result<()> {
-        let mut file = File::open(Self::SAVE_FILE)?;
+        let mut file = File::open(Self::savefile_path())?;
         let mut save_str = String::new();
         file.read_to_string(&mut save_str)?;
         (self.settings, self.custom_game_settings, self.past_games) =
@@ -1184,7 +1229,7 @@ impl<T: Write> App<T> {
     }
 
     fn settings_menu(&mut self) -> io::Result<MenuUpdate> {
-        let selection_len = 7;
+        let selection_len = 8;
         let mut selected = 0usize;
         loop {
             let w_main = Self::W_MAIN.into();
@@ -1197,18 +1242,24 @@ impl<T: Write> App<T> {
                 .queue(MoveTo(x_main, y_main + y_selection + 2))?
                 .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
             let labels = [
+                "| Configure Controls .. |".to_string(),
                 format!("graphics : '{:?}'", self.settings.graphics_style),
                 format!("color : '{:?}'", self.settings.graphics_color),
                 format!("framerate : {}", self.settings.game_fps),
                 format!("show fps : {}", self.settings.show_fps),
                 format!("rotation system : '{:?}'", self.settings.rotation_system),
                 format!("no soft drop lock* : {}", self.settings.no_soft_drop_lock),
-                "| Configure Controls |".to_string(),
+                if self.settings.save_data_on_exit {
+                    "Keep savefile for tetrs : On"
+                } else {
+                    "Keep savefile for tetrs : Off [WARNING: data will be lost on exit!]"
+                }
+                .to_string(),
                 String::new(),
                 format!(
-                    "(*auto-set to {} because keyboard enhancements are {}available)",
+                    "(*automatically {} as keyboard enhancements are {}available)",
                     if self.kitty_enabled { "off" } else { "on" },
-                    if self.kitty_enabled { "" } else { "un" }
+                    if self.kitty_enabled { "" } else { "UN" }
                 ),
             ];
             for (i, label) in labels.into_iter().enumerate() {
@@ -1259,7 +1310,7 @@ impl<T: Write> App<T> {
                     kind: Press,
                     ..
                 }) => {
-                    if selected == selection_len - 1 {
+                    if selected == 0 {
                         break Ok(MenuUpdate::Push(Menu::ConfigureControls));
                     }
                 }
@@ -1284,76 +1335,80 @@ impl<T: Write> App<T> {
                     kind: Press | Repeat,
                     ..
                 }) => match selected {
-                    0 => {
+                    1 => {
                         self.settings.graphics_style = match self.settings.graphics_style {
                             GraphicsStyle::ASCII => GraphicsStyle::Unicode,
                             GraphicsStyle::Unicode => GraphicsStyle::ASCII,
                         };
                     }
-                    1 => {
+                    2 => {
                         self.settings.graphics_color = match self.settings.graphics_color {
                             GraphicsColor::Monochrome => GraphicsColor::Color16,
                             GraphicsColor::Color16 => GraphicsColor::ColorRGB,
                             GraphicsColor::ColorRGB => GraphicsColor::Monochrome,
                         };
                     }
-                    2 => {
+                    3 => {
                         self.settings.game_fps += 1.0;
                     }
-                    3 => {
+                    4 => {
                         self.settings.show_fps = !self.settings.show_fps;
                     }
-                    4 => {
+                    5 => {
                         self.settings.rotation_system = match self.settings.rotation_system {
                             RotationSystem::Ocular => RotationSystem::Classic,
                             RotationSystem::Classic => RotationSystem::Super,
                             RotationSystem::Super => RotationSystem::Ocular,
                         }
                     }
-                    5 => {
+                    6 => {
                         self.settings.no_soft_drop_lock = !self.settings.no_soft_drop_lock;
                     }
-                    6 => {}
-                    _ => unreachable!(),
+                    7 => {
+                        self.settings.save_data_on_exit = !self.settings.save_data_on_exit;
+                    }
+                    _ => {}
                 },
                 Event::Key(KeyEvent {
                     code: KeyCode::Left,
                     kind: Press | Repeat,
                     ..
                 }) => match selected {
-                    0 => {
+                    1 => {
                         self.settings.graphics_style = match self.settings.graphics_style {
                             GraphicsStyle::ASCII => GraphicsStyle::Unicode,
                             GraphicsStyle::Unicode => GraphicsStyle::ASCII,
                         };
                     }
-                    1 => {
+                    2 => {
                         self.settings.graphics_color = match self.settings.graphics_color {
                             GraphicsColor::Monochrome => GraphicsColor::ColorRGB,
                             GraphicsColor::Color16 => GraphicsColor::Monochrome,
                             GraphicsColor::ColorRGB => GraphicsColor::Color16,
                         };
                     }
-                    2 => {
+                    3 => {
                         if self.settings.game_fps >= 1.0 {
                             self.settings.game_fps -= 1.0;
                         }
                     }
-                    3 => {
+                    4 => {
                         self.settings.show_fps = !self.settings.show_fps;
                     }
-                    4 => {
+                    5 => {
                         self.settings.rotation_system = match self.settings.rotation_system {
                             RotationSystem::Ocular => RotationSystem::Super,
                             RotationSystem::Classic => RotationSystem::Ocular,
                             RotationSystem::Super => RotationSystem::Classic,
                         };
                     }
-                    5 => {
+                    6 => {
                         self.settings.no_soft_drop_lock = !self.settings.no_soft_drop_lock;
                     }
-                    6 => {}
-                    _ => unreachable!(),
+                    7 => {
+                        self.settings.save_data_on_exit = !self.settings.save_data_on_exit;
+                    }
+                    _ => {}
                 },
                 // Other event: don't care.
                 _ => {}
