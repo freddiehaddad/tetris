@@ -125,13 +125,13 @@ pub enum InternalEvent {
     LineClear,
     Spawn,
     Lock,
+    Fall,
     HardDrop,
     SoftDrop,
     MoveSlow,
     MoveFast,
     Rotate,
     LockTimer,
-    Fall,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
@@ -686,12 +686,7 @@ impl Game {
                 // Update button inputs.
                 if let Some(buttons_pressed) = new_button_state.take() {
                     if self.state.active_piece_data.is_some() {
-                        Self::add_input_events(
-                            &mut self.state.events,
-                            self.state.buttons_pressed,
-                            buttons_pressed,
-                            update_time,
-                        );
+                        self.add_input_events(buttons_pressed, update_time);
                     }
                     self.state.buttons_pressed = buttons_pressed;
                 } else {
@@ -704,13 +699,12 @@ impl Game {
     }
 
     fn add_input_events(
-        events: &mut EventMap,
-        prev_buttons_pressed: ButtonsPressed,
+        &mut self,
         next_buttons_pressed: ButtonsPressed,
         update_time: GameTime,
     ) {
         #[allow(non_snake_case)]
-        let [mL0, mR0, rL0, rR0, rA0, dS0, dH0] = prev_buttons_pressed;
+        let [mL0, mR0, rL0, rR0, rA0, dS0, dH0] = self.state.buttons_pressed;
         #[allow(non_snake_case)]
         let [mL1, mR1, rL1, rR1, rA1, dS1, dH1] = next_buttons_pressed;
         /*
@@ -735,14 +729,14 @@ impl Game {
         */
         // No buttons pressed -> one button pressed, add initial move.
         if (!mL0 && !mR0) && (mL1 != mR1) {
-            events.insert(InternalEvent::MoveSlow, update_time);
+            self.state.events.insert(InternalEvent::MoveSlow, update_time);
         // One/Two buttons pressed -> different/one button pressed, (re-)add fast repeat move.
         } else if (mL0 && (!mL1 && mR1)) || (mR0 && (mL1 && !mR1)) {
-            events.remove(&InternalEvent::MoveFast);
-            events.insert(InternalEvent::MoveFast, update_time);
+            self.state.events.remove(&InternalEvent::MoveFast);
+            self.state.events.insert(InternalEvent::MoveFast, update_time);
         // Single button pressed -> both (un)pressed, remove future moves.
         } else if (mL0 != mR0) && (mL1 == mR1) {
-            events.remove(&InternalEvent::MoveFast);
+            self.state.events.remove(&InternalEvent::MoveFast);
         }
         /*
         Table:                       Karnaugh map:
@@ -768,15 +762,17 @@ impl Game {
         */
         // Either a 180 rotation, or a single L/R rotation button was pressed.
         if (!rA0 && rA1) || (((!rR0 && rR1) || (!rL0 && rL1)) && (rL0 || rR0 || !rR1 || !rL1)) {
-            events.insert(InternalEvent::Rotate, update_time);
+            self.state.events.insert(InternalEvent::Rotate, update_time);
         }
         // Soft drop button pressed.
         if !dS0 && dS1 {
-            events.insert(InternalEvent::SoftDrop, update_time);
+            self.state.events.insert(InternalEvent::SoftDrop, update_time);
+        } else if dS0 && !dS1 {
+            self.state.events.insert(InternalEvent::Fall, update_time + self.drop_delay());
         }
         // Hard drop button pressed.
         if !dH0 && dH1 {
-            events.insert(InternalEvent::HardDrop, update_time);
+            self.state.events.insert(InternalEvent::HardDrop, update_time);
         }
     }
 
@@ -871,6 +867,9 @@ impl Game {
             InternalEvent::Fall | InternalEvent::SoftDrop => {
                 let prev_piece = prev_piece.expect("falling/softdropping none active piece");
                 if self.state.level >= Self::LEVEL_20G {
+                    if event == InternalEvent::SoftDrop && !self.config.no_soft_drop_lock && prev_piece.fits_at(&self.state.board, (0, -1)).is_none() {
+                        self.state.events.insert(InternalEvent::Lock, event_time);
+                    }
                     Some(prev_piece.well_piece(&self.state.board))
                 } else {
                     let drop_delay = if self.state.buttons_pressed[Button::DropSoft] {
