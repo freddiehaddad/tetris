@@ -1,7 +1,8 @@
 use std::{collections::VecDeque, num::NonZeroU32};
 
 use tetrs_engine::{
-    Feedback, FeedbackEvents, Game, GameConfig, GameMode, GameOver, GameState, InternalEvent, Limits, ModifierPoint, Tetromino
+    Feedback, FeedbackEvents, Game, GameConfig, GameMode, GameOver, GameState, InternalEvent,
+    Limits, ModifierPoint, Tetromino,
 };
 
 const MAX_STAGE_ATTEMPTS: usize = 3;
@@ -154,9 +155,12 @@ pub fn make_game() -> Game {
             ], VecDeque::from([Tetromino::T,Tetromino::J,Tetromino::L])),
     ];
     let puzzles_len = puzzles.len();
-    let load_puzzle = move |state: &mut GameState, attempt: usize, current_puzzle_idx: usize, feedback_events: &mut FeedbackEvents| -> usize {
-        let (puzzle_name, puzzle_lines, puzzle_pieces) =
-            &puzzles[current_puzzle_idx];
+    let load_puzzle = move |state: &mut GameState,
+                            attempt: usize,
+                            current_puzzle_idx: usize,
+                            feedback_events: &mut FeedbackEvents|
+          -> usize {
+        let (puzzle_name, puzzle_lines, puzzle_pieces) = &puzzles[current_puzzle_idx];
         // Game message.
         feedback_events.push((
             state.time,
@@ -167,11 +171,7 @@ pub fn make_game() -> Game {
                     puzzle_name.to_ascii_uppercase()
                 )
             } else {
-                format!(
-                    "{}. TRY ({})",
-                    attempt,
-                    puzzle_name.to_ascii_uppercase()
-                )
+                format!("{}. TRY ({})", attempt, puzzle_name.to_ascii_uppercase())
             }),
         ));
         // Queue pieces and lines.
@@ -200,63 +200,86 @@ pub fn make_game() -> Game {
     let mut current_puzzle_idx = 0;
     let mut current_puzzle_attempt = 1;
     let mut current_puzzle_piececnt_limit = 0;
-    let puzzle_modifier =
-        move |config: &mut GameConfig,
-              _mode: &mut GameMode,
-              state: &mut GameState,
-              feedback_events: &mut FeedbackEvents,
-              modifier_point: &ModifierPoint| {
-            let game_piececnt = usize::try_from(state.pieces_played.iter().sum::<u32>()).unwrap();
-            if init {
-                let piececnt = load_puzzle(state, current_puzzle_attempt, current_puzzle_idx, feedback_events);
-                current_puzzle_piececnt_limit = game_piececnt + piececnt;
-                init = false;
-            } else if matches!(modifier_point, ModifierPoint::BeforeEvent(InternalEvent::Spawn)) && game_piececnt == current_puzzle_piececnt_limit {
-                let puzzle_done = state
-                    .board
-                    .iter()
-                    .all(|line| line.iter().all(|cell| cell.is_none()));
-                // Run out of attempts, game over.
-                if !puzzle_done && current_puzzle_attempt == MAX_STAGE_ATTEMPTS {
-                    state.end = Some(Err(GameOver::ModeLimit));
+    let puzzle_modifier = move |config: &mut GameConfig,
+                                _mode: &mut GameMode,
+                                state: &mut GameState,
+                                feedback_events: &mut FeedbackEvents,
+                                modifier_point: &ModifierPoint| {
+        let game_piececnt = usize::try_from(state.pieces_played.iter().sum::<u32>()).unwrap();
+        if init {
+            let piececnt = load_puzzle(
+                state,
+                current_puzzle_attempt,
+                current_puzzle_idx,
+                feedback_events,
+            );
+            current_puzzle_piececnt_limit = game_piececnt + piececnt;
+            init = false;
+        } else if matches!(
+            modifier_point,
+            ModifierPoint::BeforeEvent(InternalEvent::Spawn)
+        ) && game_piececnt == current_puzzle_piececnt_limit
+        {
+            let puzzle_done = state
+                .board
+                .iter()
+                .all(|line| line.iter().all(|cell| cell.is_none()));
+            // Run out of attempts, game over.
+            if !puzzle_done && current_puzzle_attempt == MAX_STAGE_ATTEMPTS {
+                state.end = Some(Err(GameOver::ModeLimit));
+            } else {
+                if puzzle_done {
+                    current_puzzle_idx += 1;
+                    current_puzzle_attempt = 1;
                 } else {
-                    if puzzle_done {
-                        current_puzzle_idx += 1;
-                        current_puzzle_attempt = 1;
-                    } else {
-                        current_puzzle_attempt += 1;
-                    }
-                    if current_puzzle_idx == puzzles_len {
-                        // Done with all puzzles, game completed.
-                        state.end = Some(Ok(()));
-                    } else {
-                        // Load in new puzzle.
-                        let piececnt = load_puzzle(state, current_puzzle_attempt, current_puzzle_idx, feedback_events);
-                        current_puzzle_piececnt_limit = game_piececnt + piececnt;
-                    }
+                    current_puzzle_attempt += 1;
+                }
+                if current_puzzle_idx == puzzles_len {
+                    // Done with all puzzles, game completed.
+                    state.end = Some(Ok(()));
+                } else {
+                    // Load in new puzzle.
+                    let piececnt = load_puzzle(
+                        state,
+                        current_puzzle_attempt,
+                        current_puzzle_idx,
+                        feedback_events,
+                    );
+                    current_puzzle_piececnt_limit = game_piececnt + piececnt;
                 }
             }
-            if matches!(modifier_point, ModifierPoint::BeforeEvent(_) | ModifierPoint::BeforeButtonChange(_, _)) {
-                config.preview_count = 0;
-                state.level = NonZeroU32::try_from(SPEED_LEVEL).unwrap();
-            } else {
-                config.preview_count = state.next_pieces.len();
-                state.level =
-                    NonZeroU32::try_from(u32::try_from(current_puzzle_idx + 1).unwrap()).unwrap();
-                // Delete accolades.
-                feedback_events.retain(|evt| !matches!(evt, (_, Feedback::Accolade { .. })));
-            }
-            // Remove spurious spawn.
-            if matches!(modifier_point, ModifierPoint::AfterEvent(InternalEvent::Spawn)) && state.end.is_some() {
-                state.active_piece_data = None;
-            }
-        };
+        }
+        if matches!(
+            modifier_point,
+            ModifierPoint::BeforeEvent(_) | ModifierPoint::BeforeButtonChange(_, _)
+        ) {
+            config.preview_count = 0;
+            state.level = NonZeroU32::try_from(SPEED_LEVEL).unwrap();
+        } else {
+            config.preview_count = state.next_pieces.len();
+            state.level =
+                NonZeroU32::try_from(u32::try_from(current_puzzle_idx + 1).unwrap()).unwrap();
+            // Delete accolades.
+            feedback_events.retain(|evt| !matches!(evt, (_, Feedback::Accolade { .. })));
+        }
+        // Remove spurious spawn.
+        if matches!(
+            modifier_point,
+            ModifierPoint::AfterEvent(InternalEvent::Spawn)
+        ) && state.end.is_some()
+        {
+            state.active_piece_data = None;
+        }
+    };
     let mut game = Game::new(GameMode {
         name: "Puzzle".to_string(),
         start_level: NonZeroU32::MIN.saturating_add(1),
         increment_level: false,
         limits: Limits {
-            level: Some((true, NonZeroU32::try_from(u32::try_from(puzzles_len).unwrap()).unwrap())),
+            level: Some((
+                true,
+                NonZeroU32::try_from(u32::try_from(puzzles_len).unwrap()).unwrap(),
+            )),
             ..Default::default()
         },
     });

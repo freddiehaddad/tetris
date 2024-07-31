@@ -1,6 +1,6 @@
 use tetrs_engine::{
-    Feedback, FeedbackEvents, GameConfig, GameMode, GameState, InternalEvent, Tetromino,
-    TetrominoGenerator,
+    Feedback, FeedbackEvents, GameConfig, GameMode, GameState, InternalEvent, ModifierPoint,
+    Tetromino, TetrominoGenerator,
 };
 
 #[allow(dead_code)]
@@ -9,9 +9,9 @@ pub fn display_tetromino_likelihood_mod(
     _mode: &mut GameMode,
     state: &mut GameState,
     feedback_events: &mut FeedbackEvents,
-    event: Result<InternalEvent, InternalEvent>,
+    event: &ModifierPoint,
 ) {
-    if event == Err(InternalEvent::Spawn) {
+    if matches!(event, ModifierPoint::AfterEvent(InternalEvent::Spawn)) {
         let TetrominoGenerator::Recency { last_generated: lg } = config.tetromino_generator else {
             panic!()
         };

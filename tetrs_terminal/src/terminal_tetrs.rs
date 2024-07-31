@@ -21,7 +21,10 @@ use crossterm::{
     terminal::{self, Clear},
     ExecutableCommand, QueueableCommand,
 };
-use tetrs_engine::{Button, ButtonsPressed, Game, GameConfig, GameMode, GameState, Limits, RotationSystem, TetrominoGenerator};
+use tetrs_engine::{
+    Button, ButtonsPressed, Game, GameConfig, GameMode, GameState, Limits, RotationSystem,
+    TetrominoGenerator,
+};
 
 use crate::game_renderers::{cached::Renderer, GameScreenRenderer};
 use crate::{
@@ -639,7 +642,7 @@ impl<T: Write> App<T> {
                     kind: Press,
                     ..
                 }) => {
-                    let game = if selected == selected_cnt - 1 {
+                    let mut game = if selected == selected_cnt - 1 {
                         let CustomModeSettings {
                             name,
                             start_level,
@@ -669,20 +672,21 @@ impl<T: Write> App<T> {
                             },
                             None => Limits::default(),
                         };
-                        Game::new(
-                            GameMode {
-                                name,
-                                start_level,
-                                increment_level,
-                                limits,
-                            },
-                        )
+                        Game::new(GameMode {
+                            name,
+                            start_level,
+                            increment_level,
+                            limits,
+                        })
                     } else if selected == selected_cnt - 2 {
                         puzzle_mode::make_game()
                     } else {
                         // SAFETY: Index < selected_cnt - 2 = preset_gamemodes.len().
                         Game::new(preset_gamemodes.into_iter().nth(selected).unwrap())
                     };
+
+                    // Set config.
+                    game.config_mut().clone_from(&self.game_config);
 
                     // TODO: Remove or make accessible.
                     // unsafe {
@@ -845,8 +849,6 @@ impl<T: Write> App<T> {
         running_game_stats: &mut RunningGameStats,
         game_renderer: &mut impl GameScreenRenderer,
     ) -> io::Result<MenuUpdate> {
-        // Update rotation system manually.
-        game.config_mut().clone_from(&self.game_config);
         // Prepare channel with which to communicate `Button` inputs / game interrupt.
         let mut buttons_pressed = ButtonsPressed::default();
         let (tx, rx) = mpsc::channel::<ButtonOrSignal>();
@@ -1277,13 +1279,11 @@ impl<T: Write> App<T> {
                     code: KeyCode::Enter,
                     kind: Press,
                     ..
-                }) => {
-                    match selected {
-                        0 => break Ok(MenuUpdate::Push(Menu::ChangeControls)),
-                        1 => break Ok(MenuUpdate::Push(Menu::ConfigureGame)),
-                        _ => {},
-                    }
-                }
+                }) => match selected {
+                    0 => break Ok(MenuUpdate::Push(Menu::ChangeControls)),
+                    1 => break Ok(MenuUpdate::Push(Menu::ConfigureGame)),
+                    _ => {}
+                },
                 // Move selector up.
                 Event::Key(KeyEvent {
                     code: KeyCode::Up,
@@ -1530,26 +1530,41 @@ impl<T: Write> App<T> {
             self.term
                 .queue(terminal::Clear(terminal::ClearType::All))?
                 .queue(MoveTo(x_main, y_main + y_selection))?
-                .queue(Print(format!("{:^w_main$}", "& Configure Game (requires new game) &")))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    "& Configure Game (requires new game) &"
+                )))?
                 .queue(MoveTo(x_main, y_main + y_selection + 2))?
                 .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
             let labels = [
                 format!("rotation system : {:?}", self.game_config.rotation_system),
-                format!("piece generator : {}", match self.game_config.tetromino_generator {
-                    TetrominoGenerator::Uniform => "Uniform",
-                    TetrominoGenerator::Bag { .. } => "7-Bag",
-                    TetrominoGenerator::Recency { .. } => "Recency/History",
-                    TetrominoGenerator::TotalRelative { .. } => "Total Relative Counts",
-                }),
+                format!(
+                    "piece generator : {}",
+                    match self.game_config.tetromino_generator {
+                        TetrominoGenerator::Uniform => "Uniform",
+                        TetrominoGenerator::Bag { .. } => "7-Bag",
+                        TetrominoGenerator::Recency { .. } => "Recency/History",
+                        TetrominoGenerator::TotalRelative { .. } => "Total Relative Counts",
+                    }
+                ),
                 format!("preview count : {}", self.game_config.preview_count),
-                format!("delayed auto shift** : {:?}", self.game_config.delayed_auto_shift),
-                format!("auto repeat rate** : {:?}", self.game_config.auto_repeat_rate),
+                format!(
+                    "delayed auto shift** : {:?}",
+                    self.game_config.delayed_auto_shift
+                ),
+                format!(
+                    "auto repeat rate** : {:?}",
+                    self.game_config.auto_repeat_rate
+                ),
                 format!("soft drop factor** : {}", self.game_config.soft_drop_factor),
                 format!("hard drop delay : {:?}", self.game_config.hard_drop_delay),
                 format!("ground time max : {:?}", self.game_config.ground_time_max),
                 format!("line clear delay : {:?}", self.game_config.line_clear_delay),
                 format!("appearance delay : {:?}", self.game_config.appearance_delay),
-                format!("no soft drop lock* : {}", self.game_config.no_soft_drop_lock),
+                format!(
+                    "no soft drop lock* : {}",
+                    self.game_config.no_soft_drop_lock
+                ),
             ];
             for (i, label) in labels.into_iter().enumerate() {
                 self.term
@@ -1579,25 +1594,28 @@ impl<T: Write> App<T> {
                         "[restore defaults]"
                     }
                 )))?;
-                self.term
-                    .queue(MoveTo(
-                        x_main,
-                        y_main + y_selection + 4 + u16::try_from(selection_len - 1).unwrap() + 4,
-                    ))?
-                    .queue(Print(format!(
-                        "{:^w_main$}", format!(
+            self.term
+                .queue(MoveTo(
+                    x_main,
+                    y_main + y_selection + 4 + u16::try_from(selection_len - 1).unwrap() + 4,
+                ))?
+                .queue(Print(format!(
+                    "{:^w_main$}",
+                    format!(
                         "(*automatically {} because keyboard enhancements are {}available)",
                         if self.kitty_enabled { "off" } else { "on" },
                         if self.kitty_enabled { "" } else { "UN" }
-                    ))))?;
-                self.term
-                    .queue(MoveTo(
-                        x_main,
-                        y_main + y_selection + 4 + u16::try_from(selection_len - 1).unwrap() + 5,
-                    ))?
-                    .queue(Print(format!(
+                    )
+                )))?;
+            self.term
+                .queue(MoveTo(
+                    x_main,
+                    y_main + y_selection + 4 + u16::try_from(selection_len - 1).unwrap() + 5,
+                ))?
+                .queue(Print(format!(
                     "{:^w_main$}",
-                    "(**only take effect if keyboard enhancements are available)")))?;
+                    "(**only take effect if keyboard enhancements are available)"
+                )))?;
             self.term.flush()?;
             // Wait for new input.
             match event::read()? {
@@ -1657,11 +1675,18 @@ impl<T: Write> App<T> {
                         };
                     }
                     1 => {
-                        self.game_config.tetromino_generator = match self.game_config.tetromino_generator {
+                        self.game_config.tetromino_generator = match self
+                            .game_config
+                            .tetromino_generator
+                        {
                             TetrominoGenerator::Uniform => TetrominoGenerator::bag(NonZeroU32::MIN),
                             TetrominoGenerator::Bag { .. } => TetrominoGenerator::recency(),
-                            TetrominoGenerator::Recency { .. } => TetrominoGenerator::total_relative(),
-                            TetrominoGenerator::TotalRelative { .. } => TetrominoGenerator::uniform(),
+                            TetrominoGenerator::Recency { .. } => {
+                                TetrominoGenerator::total_relative()
+                            }
+                            TetrominoGenerator::TotalRelative { .. } => {
+                                TetrominoGenerator::uniform()
+                            }
                         };
                     }
                     2 => {
@@ -1706,21 +1731,33 @@ impl<T: Write> App<T> {
                         };
                     }
                     1 => {
-                        self.game_config.tetromino_generator = match self.game_config.tetromino_generator {
-                            TetrominoGenerator::Uniform => TetrominoGenerator::total_relative(),
-                            TetrominoGenerator::Bag { .. } => TetrominoGenerator::uniform(),
-                            TetrominoGenerator::Recency { .. } => TetrominoGenerator::bag(NonZeroU32::MIN),
-                            TetrominoGenerator::TotalRelative { .. } => TetrominoGenerator::recency(),
-                        };
+                        self.game_config.tetromino_generator =
+                            match self.game_config.tetromino_generator {
+                                TetrominoGenerator::Uniform => TetrominoGenerator::total_relative(),
+                                TetrominoGenerator::Bag { .. } => TetrominoGenerator::uniform(),
+                                TetrominoGenerator::Recency { .. } => {
+                                    TetrominoGenerator::bag(NonZeroU32::MIN)
+                                }
+                                TetrominoGenerator::TotalRelative { .. } => {
+                                    TetrominoGenerator::recency()
+                                }
+                            };
                     }
                     2 => {
-                        self.game_config.preview_count = self.game_config.preview_count.saturating_sub(1);
+                        self.game_config.preview_count =
+                            self.game_config.preview_count.saturating_sub(1);
                     }
                     3 => {
-                        self.game_config.delayed_auto_shift = self.game_config.delayed_auto_shift.saturating_sub(Duration::from_millis(1));
+                        self.game_config.delayed_auto_shift = self
+                            .game_config
+                            .delayed_auto_shift
+                            .saturating_sub(Duration::from_millis(1));
                     }
                     4 => {
-                        self.game_config.auto_repeat_rate = self.game_config.auto_repeat_rate.saturating_sub(Duration::from_millis(1));
+                        self.game_config.auto_repeat_rate = self
+                            .game_config
+                            .auto_repeat_rate
+                            .saturating_sub(Duration::from_millis(1));
                     }
                     5 => {
                         if self.game_config.soft_drop_factor > 0.0 {
@@ -1729,17 +1766,29 @@ impl<T: Write> App<T> {
                     }
                     6 => {
                         if self.game_config.hard_drop_delay >= Duration::from_millis(1) {
-                            self.game_config.hard_drop_delay = self.game_config.hard_drop_delay.saturating_sub(Duration::from_millis(1));
+                            self.game_config.hard_drop_delay = self
+                                .game_config
+                                .hard_drop_delay
+                                .saturating_sub(Duration::from_millis(1));
                         }
                     }
                     7 => {
-                        self.game_config.ground_time_max = self.game_config.ground_time_max.saturating_sub(Duration::from_millis(10));
+                        self.game_config.ground_time_max = self
+                            .game_config
+                            .ground_time_max
+                            .saturating_sub(Duration::from_millis(10));
                     }
                     8 => {
-                        self.game_config.line_clear_delay = self.game_config.line_clear_delay.saturating_sub(Duration::from_millis(10));
+                        self.game_config.line_clear_delay = self
+                            .game_config
+                            .line_clear_delay
+                            .saturating_sub(Duration::from_millis(10));
                     }
                     9 => {
-                        self.game_config.appearance_delay = self.game_config.appearance_delay.saturating_sub(Duration::from_millis(10));
+                        self.game_config.appearance_delay = self
+                            .game_config
+                            .appearance_delay
+                            .saturating_sub(Duration::from_millis(10));
                     }
                     10 => {
                         self.game_config.no_soft_drop_lock = !self.game_config.no_soft_drop_lock;

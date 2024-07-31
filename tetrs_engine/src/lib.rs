@@ -23,13 +23,7 @@ pub type Offset = (isize, isize);
 pub type GameTime = Duration;
 pub type FeedbackEvents = Vec<(GameTime, Feedback)>;
 pub type FnGameMod = Box<
-    dyn FnMut(
-        &mut GameConfig,
-        &mut GameMode,
-        &mut GameState,
-        &mut FeedbackEvents,
-        &ModifierPoint,
-    ),
+    dyn FnMut(&mut GameConfig, &mut GameMode, &mut GameState, &mut FeedbackEvents, &ModifierPoint),
 >;
 type EventMap = HashMap<InternalEvent, GameTime>;
 
@@ -700,9 +694,18 @@ impl Game {
                 // Update button inputs.
                 if let Some(buttons_pressed) = new_button_state.take() {
                     if self.state.active_piece_data.is_some() {
-                        self.apply_modifiers(&mut feedback_events, &ModifierPoint::BeforeButtonChange(self.state.buttons_pressed, buttons_pressed));
+                        self.apply_modifiers(
+                            &mut feedback_events,
+                            &ModifierPoint::BeforeButtonChange(
+                                self.state.buttons_pressed,
+                                buttons_pressed,
+                            ),
+                        );
                         self.add_input_events(buttons_pressed, update_time);
-                        self.apply_modifiers(&mut feedback_events, &ModifierPoint::AfterButtonChange);
+                        self.apply_modifiers(
+                            &mut feedback_events,
+                            &ModifierPoint::AfterButtonChange,
+                        );
                     }
                     self.state.buttons_pressed = buttons_pressed;
                 } else {
