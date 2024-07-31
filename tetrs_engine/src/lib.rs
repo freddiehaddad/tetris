@@ -960,9 +960,7 @@ impl Game {
                         * if spin { 4 } else { 1 }
                         * if perfect_clear { 16 } else { 1 }
                         * self.state.consecutive_line_clears
-                        * (self.state.back_to_back_special_clears
-                            * self.state.back_to_back_special_clears)
-                            .max(1);
+                        * self.state.back_to_back_special_clears.max(1);
                     self.state.score += score_bonus;
                     let yippie = Feedback::Accolade {
                         score_bonus,
