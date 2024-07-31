@@ -432,11 +432,11 @@ impl GameMode {
     }
 
     #[allow(dead_code)]
-    pub fn endless() -> Self {
+    pub fn zen() -> Self {
         Self {
-            name: String::from("Zen"),
+            name: String::from("Endless"),
             start_level: NonZeroU32::MIN,
-            increment_level: true,
+            increment_level: false,
             limits: Default::default(),
         }
     }
