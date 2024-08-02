@@ -22,8 +22,8 @@ use crossterm::{
     ExecutableCommand, QueueableCommand,
 };
 use tetrs_engine::{
-    Button, ButtonsPressed, Game, GameConfig, GameMode, GameState, Limits, RotationSystem,
-    TetrominoGenerator,
+    piece_generation::TetrominoGenerator, piece_rotation::RotationSystem, Button, ButtonsPressed,
+    Game, GameConfig, GameMode, GameState, Limits,
 };
 
 use crate::game_renderers::{cached::Renderer, GameScreenRenderer};

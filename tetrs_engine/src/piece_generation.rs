@@ -10,29 +10,45 @@ use rand::{
 
 use crate::Tetromino;
 
+/// Handles the information of which pieces to spawn during a game.
+///
+/// To actually generate [`Tetromino`]s, the [`TetrominoGenerator::with_rng`] method needs to be used to yield a
+/// [`TetrominoIterator`] that implements [`Iterator`].
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(dead_code)]
 pub enum TetrominoGenerator {
+    /// Uniformly random piece generator.
     Uniform,
+    /// Standard 'bag' generator.
+    ///
+    /// It is not limited to '7-bag' and allows for other multiplicities `n` as well.
+    /// It works by picking `n` copies of each [`Tetromino`] type, and then uniformly random
+    /// handing them out until the bag is empty and is refilled again.
     Bag {
         pieces_left: [u32; 7],
         multiplicity: NonZeroU32,
     },
-    Recency {
-        last_generated: [u32; 7],
-    },
-    TotalRelative {
-        relative_counts: [u32; 7],
-    },
+    /// Recency/history-based piece generator.
+    ///
+    /// This generator keeps track of the last time each [`Tetromino`] type has been seen.
+    /// It picks pieces by weighing them by this information, such that it is impossible to choose a
+    /// piece picked last time, and a bit more than quadratically (`x.powf(2.5)`) more likely to
+    /// choose the index of another piece.
+    Recency { last_generated: [u32; 7] },
+    /// Experimental generator based off of how many times each [`Tetromino`] type has been seen
+    /// *in total so far*.
+    TotalRelative { relative_counts: [u32; 7] },
 }
 
 #[allow(dead_code)]
 impl TetrominoGenerator {
+    /// Initialize a new instance of the [`TetrominoGenerator::Uniform`] variant.
     pub fn uniform() -> Self {
         Self::Uniform
     }
 
+    /// Initialize a new instance of the [`TetrominoGenerator::Bag`] variant with some multiplicity.
     pub fn bag(multiplicity: NonZeroU32) -> Self {
         Self::Bag {
             pieces_left: [multiplicity.get(); 7],
@@ -40,22 +56,22 @@ impl TetrominoGenerator {
         }
     }
 
+    /// Initialize a new instance of the [`TetrominoGenerator::Recency`] variant.
     pub fn recency() -> Self {
         let mut last_generated = [0, 1, 2, 3, 4, 5, 6];
         last_generated.shuffle(&mut rand::thread_rng());
         Self::Recency { last_generated }
     }
 
+    /// Initialize a new instance of the [`TetrominoGenerator::TotalRelative`] variant.
     pub fn total_relative() -> Self {
         Self::TotalRelative {
             relative_counts: [0; 7],
         }
     }
 
-    pub(crate) fn with_rng<'a, 'b>(
-        &'a mut self,
-        rng: &'b mut ThreadRng,
-    ) -> TetrominoIterator<'a, 'b> {
+    /// Method that allows `TetrominoGenerator` to be used as an [`Iterator`].
+    pub fn with_rng<'a, 'b>(&'a mut self, rng: &'b mut ThreadRng) -> TetrominoIterator<'a, 'b> {
         TetrominoIterator {
             tetromino_generator: self,
             rng,
@@ -74,9 +90,10 @@ impl Clone for TetrominoGenerator {
     }
 }
 
-pub(crate) struct TetrominoIterator<'a, 'b> {
-    tetromino_generator: &'a mut TetrominoGenerator,
-    rng: &'b mut ThreadRng,
+/// Struct produced from [`TetrominoGenerator::with_rng`] which implements [`Iterator`].
+pub struct TetrominoIterator<'a, 'b> {
+    pub tetromino_generator: &'a mut TetrominoGenerator,
+    pub rng: &'b mut ThreadRng,
 }
 
 impl<'a, 'b> Iterator for TetrominoIterator<'a, 'b> {
@@ -118,13 +135,7 @@ impl<'a, 'b> Iterator for TetrominoIterator<'a, 'b> {
                 Some(idx.try_into().unwrap())
             }
             TetrominoGenerator::Recency { last_generated } => {
-                // let weighing = |x| x;
-                // let weighing = |&x| f64::from(x).powf(1.5);
-                // let weighing = |x| x * x;
                 let weighing = |&x| f64::from(x).powf(2.5);
-                // let weighing = |&x| f64::from(x).powf(std::f64::consts::E);
-                // let weighing = |x| x * x * x;
-                // let weighing = |&x| f64::from(x).exp() - 1.0;
                 let weights = last_generated.iter().map(weighing);
                 // SAFETY: `weights` will always be non-zero due to `weighing`.
                 let idx = WeightedIndex::new(weights).unwrap().sample(&mut self.rng);

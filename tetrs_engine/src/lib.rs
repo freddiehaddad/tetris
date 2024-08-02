@@ -1,5 +1,12 @@
-mod rotation_systems;
-mod tetromino_generators;
+//! # Tetrs Engine
+//!
+//! `tetrs_engine` is an implementation of a tetromino game engine, able to handle numerous modern
+//! mechanics:
+// TODO: Complete all features.
+//! - stuff
+
+pub mod piece_generation;
+pub mod piece_rotation;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -9,9 +16,9 @@ use std::{
     time::Duration,
 };
 
+use piece_generation::TetrominoGenerator;
+use piece_rotation::RotationSystem;
 use rand::rngs::ThreadRng;
-pub use rotation_systems::RotationSystem;
-pub use tetromino_generators::TetrominoGenerator;
 
 pub type ButtonsPressed = [bool; 8];
 // NOTE: Would've liked to use `impl Game { type Board = ...` (https://github.com/rust-lang/rust/issues/8995)
@@ -27,93 +34,174 @@ pub type FnGameMod = Box<
 >;
 type EventMap = HashMap<InternalEvent, GameTime>;
 
+/// Represents an abstract game input.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Button {
+    /// Movement to the left.
     MoveLeft,
+    /// Movement to the right.
     MoveRight,
+    /// Rotation by 90° counter-clockwise.
     RotateLeft,
+    /// Rotation by 90° clockwise.
     RotateRight,
+    /// Rotation by 180°.
     RotateAround,
+    /// "Soft" dropping.
+    /// This conventionally drops a piece down by one, afterwards continuing to
+    /// drop at sped-up rate while held.
     DropSoft,
+    /// "Hard" dropping.
+    /// This conventionally drops a piece straight down until it hits a surface,
+    /// locking it there (almost) immediately.
     DropHard,
+    /// "Sonic" dropping.
+    /// This conventionally drops a piece straight down until it hits a surface,
+    /// **without** locking it immediately or performing any other special handling
+    /// with respect to locking.
     DropSonic,
 }
 
+/// Represents the orientation an active piece can be in.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Orientation {
+    /// North.
     N,
+    /// East.
     E,
+    /// South.
     S,
+    /// West.
     W,
 }
 
+/// Represents one of the seven playable piece shapes.
+///
+/// A "Tetromino" is a two-dimensional shape made from connecting exactly
+/// four square tiles into one rigid piece.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Tetromino {
+    /// 'O'-Tetromino: Four tiles arranged in one big square; '⠶', `██`.
     O,
+    /// 'I'-Tetromino: Four tiles arranged in one straight line; '⡇', `▄▄▄▄`.
     I,
+    /// 'S'-Tetromino: Four tiles arranged in a left-snaking manner; '⠳', `▄█▀`.
     S,
+    /// 'Z'-Tetromino: Four tiles arranged in a right-snaking manner; '⠞', `▀█▄`.
     Z,
+    /// 'T'-Tetromino: Four tiles arranged in a 'T'-shape; '⠲⠂', `▄█▄`.
     T,
+    /// 'L'-Tetromino: Four tiles arranged in a 'L'-shape; '⠧', `▄▄█`.
     L,
+    /// 'J'-Tetromino: Four tiles arranged in a 'J'-shape; '⠼', `█▄▄`.
     J,
 }
 
+/// An active tetromino in play.
+///
+/// An active piece in principle is designated only(!) by its Tetromino shape,
+/// re-orientation thereof into one of four directions, and a coordinate
+/// on the current playing grid.
+///
+/// Notably, the [`Game`] additionally stores [`LockingData`] corresponding
+/// to the main active piece outside this struct.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActivePiece {
     pub shape: Tetromino,
     pub orientation: Orientation,
-    pub pos: Coord,
+    pub position: Coord,
 }
 
+/// Locking details stored about an active piece in play.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LockingData {
+    /// Whether the main piece currently touches a surface below.
     touches_ground: bool,
+    /// The last time the main piece was recorded to touching ground after not having done previously.
     last_touchdown: Option<GameTime>,
+    /// The last time the main piece was recorded to be afloat after not having been previously.
     last_liftoff: Option<GameTime>,
+    /// The total duration the main piece is allowed to touch ground until it should immediately lock down.
     ground_time_left: Duration,
+    /// The lowest recorded vertical position of the main piece.
     lowest_y: usize,
 }
 
+/// Stores the ways in which a round of the game should be limited.
+///
+/// Each limitation may be either of positive ('game completed') or negative ('game over'), as
+/// designated by the `bool` stored with it.
+///
+/// No limitations may allow for endless games.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Default, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Limits {
+    /// The total time a round may be played.
     pub time: Option<(bool, Duration)>,
+    /// The total number of pieces locked that may be played.
     pub pieces: Option<(bool, u32)>,
+    /// The total number of full lines that may be cleared.
     pub lines: Option<(bool, usize)>,
+    /// The number of levels to reach.
     pub level: Option<(bool, NonZeroU32)>,
+    /// The number of game points to earn.
     pub score: Option<(bool, u32)>,
 }
 
+/// The playing configuration specific to the single, current round of play.
+///
+/// A 'game mode' usually mainly designates what kind of game is currently played,
+/// and how it may end (un)successfully with regards to some goal.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameMode {
+    /// Conventional name that may be given to an instance of this struct.
     pub name: String,
+    /// The level at which a game should start.
     pub start_level: NonZeroU32,
+    /// Whether the level should be automatically incremented while the game plays.
     pub increment_level: bool,
+    /// The limitations under which a game may end (un)successfully.
     pub limits: Limits,
 }
 
+/// User-focused configuration options that mainly influence time-sensitive or cosmetic mechanics.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameConfig {
+    /// The [`RotationSystem`] used.
     pub rotation_system: RotationSystem,
+    /// The [`TetrominoGenerator`] used.
     pub tetromino_generator: TetrominoGenerator,
+    /// How many pieces should be pre-generated and accessible/visible in the game state.
     pub preview_count: usize,
+    /// How long it takes for the active piece to start automatically shifting more to the side
+    /// after the initial time a 'move' button has been pressed.
     pub delayed_auto_shift: Duration,
+    /// How long it takes for automatic side movement to repeat once it has started.
     pub auto_repeat_rate: Duration,
+    /// How much faster than normal drop speed a piece should fall while 'soft drop' is being held.
     pub soft_drop_factor: f64,
+    /// How long it takes a piece to attempt locking down after 'hard drop' has landed the piece on
+    /// the ground.
     pub hard_drop_delay: Duration,
+    /// How long each spawned active piece may touch the ground in total until it should lock down
+    /// immediately.
     pub ground_time_max: Duration,
+    /// How long the game should wait after clearing a line.
     pub line_clear_delay: Duration,
+    /// How long the game should wait *additionally* before spawning a new piece.
     pub appearance_delay: Duration,
+    /// Whether to disable a 'soft drop' button press to explicitly and immediately lock down a piece.
     pub no_soft_drop_lock: bool,
 }
 
+/// An event that is scheduled by the game engine to execute some action.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum InternalEvent {
@@ -130,6 +218,7 @@ pub enum InternalEvent {
     LockTimer,
 }
 
+/// Represents how a game can end.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GameOver {
@@ -139,6 +228,7 @@ pub enum GameOver {
     Forfeit,
 }
 
+///
 #[derive(Eq, PartialEq, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GameState {
@@ -325,7 +415,7 @@ impl ActivePiece {
         let Self {
             shape,
             orientation,
-            pos: (x, y),
+            position: (x, y),
         } = self;
         let tile_type_id = shape.tiletypeid();
         shape
@@ -341,7 +431,7 @@ impl ActivePiece {
 
     pub fn fits_at(&self, board: &Board, offset: Offset) -> Option<ActivePiece> {
         let mut new_piece = *self;
-        new_piece.pos = add(self.pos, offset)?;
+        new_piece.position = add(self.position, offset)?;
         new_piece.fits(board).then_some(new_piece)
     }
 
@@ -353,7 +443,7 @@ impl ActivePiece {
     ) -> Option<ActivePiece> {
         let mut new_piece = *self;
         new_piece.orientation = new_piece.orientation.rotate_r(right_turns);
-        new_piece.pos = add(self.pos, offset)?;
+        new_piece.position = add(self.position, offset)?;
         new_piece.fits(board).then_some(new_piece)
     }
 
@@ -365,9 +455,9 @@ impl ActivePiece {
     ) -> Option<ActivePiece> {
         let mut new_piece = *self;
         new_piece.orientation = new_piece.orientation.rotate_r(right_turns);
-        let old_pos = self.pos;
+        let old_pos = self.position;
         offsets.into_iter().find_map(|offset| {
-            new_piece.pos = add(old_pos, offset)?;
+            new_piece.position = add(old_pos, offset)?;
             new_piece.fits(board).then_some(new_piece)
         })
     }
@@ -516,11 +606,11 @@ impl Game {
     // SAFETY: 19 > 0, and this is the level at which blocks start falling with 20G.
     const LEVEL_20G: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(19) };
 
-    pub fn new(gamemode: GameMode) -> Self {
-        Self::with_config(gamemode, GameConfig::default())
+    pub fn new(game_mode: GameMode) -> Self {
+        Self::with_config(game_mode, GameConfig::default())
     }
 
-    pub fn with_config(gamemode: GameMode, config: GameConfig) -> Self {
+    pub fn with_config(game_mode: GameMode, config: GameConfig) -> Self {
         let state = GameState {
             time: Duration::ZERO,
             end: None,
@@ -533,14 +623,14 @@ impl Game {
             next_pieces: VecDeque::new(),
             pieces_played: [0; 7],
             lines_cleared: 0,
-            level: gamemode.start_level,
+            level: game_mode.start_level,
             score: 0,
             consecutive_line_clears: 0,
             back_to_back_special_clears: 0,
         };
         Game {
             config,
-            mode: gamemode,
+            mode: game_mode,
             state,
             rng: rand::thread_rng(),
             modifiers: Vec::new(),
@@ -787,7 +877,7 @@ impl Game {
         } else if dS0 && !dS1 {
             self.state.events.insert(
                 InternalEvent::Fall,
-                update_time + Self::drop_delay(&self.state.level),
+                update_time + Self::drop_delay(self.state.level, None),
             );
         }
         // Sonic drop button pressed
@@ -801,6 +891,29 @@ impl Game {
             self.state
                 .events
                 .insert(InternalEvent::HardDrop, update_time);
+        }
+    }
+
+    fn position_tetromino(shape: Tetromino) -> ActivePiece {
+        let pos = match shape {
+            Tetromino::O => (4, 20),
+            _ => (3, 20),
+        };
+        let orientation = Orientation::N;
+        /* NOTE: Unused spawn positions/orientations. While nice and symmetrical :): also unusual.
+        let (orientation, pos) = match shape {
+            Tetromino::O => (Orientation::N, (4, 20)),
+            Tetromino::I => (Orientation::N, (3, 20)),
+            Tetromino::S => (Orientation::E, (4, 20)),
+            Tetromino::Z => (Orientation::W, (4, 20)),
+            Tetromino::T => (Orientation::N, (3, 20)),
+            Tetromino::L => (Orientation::E, (4, 20)),
+            Tetromino::J => (Orientation::W, (4, 20)),
+        };*/
+        ActivePiece {
+            shape,
+            orientation,
+            position: pos,
         }
     }
 
@@ -833,7 +946,7 @@ impl Game {
                                 .saturating_sub(self.state.next_pieces.len()),
                         ),
                 );
-                let next_piece = self.config.rotation_system.place_initial(tetromino);
+                let next_piece = Self::position_tetromino(tetromino);
                 // Newly spawned piece conflicts with board - Game over.
                 if !next_piece.fits(&self.state.board) {
                     self.state.end = Some(Err(GameOver::BlockOut));
@@ -846,6 +959,12 @@ impl Game {
                     self.state
                         .events
                         .insert(InternalEvent::MoveFast, event_time);
+                }
+                if self.state.buttons_pressed[Button::RotateLeft]
+                    || self.state.buttons_pressed[Button::RotateRight]
+                    || self.state.buttons_pressed[Button::RotateAround]
+                {
+                    self.state.events.insert(InternalEvent::Rotate, event_time);
                 }
                 Some(next_piece)
             }
@@ -900,12 +1019,9 @@ impl Game {
                 // Ordinary gravity fall.
                 } else {
                     // Drop delay is possibly faster due to soft drop button pressed.
-                    let mut drop_delay = Self::drop_delay(&self.state.level);
-                    if self.state.buttons_pressed[Button::DropSoft] {
-                        drop_delay = Duration::from_secs_f64(
-                            drop_delay.as_secs_f64() / self.config.soft_drop_factor.max(0.00001),
-                        );
-                    }
+                    let soft_drop = self.state.buttons_pressed[Button::DropSoft]
+                        .then_some(self.config.soft_drop_factor);
+                    let drop_delay = Self::drop_delay(self.state.level, soft_drop);
                     // Try to drop active piece down by one, and queue next fall event.
                     if let Some(dropped_piece) = prev_piece.fits_at(&self.state.board, (0, -1)) {
                         self.state
@@ -926,7 +1042,9 @@ impl Game {
                 let prev_piece = prev_piece.expect("softdrop event but no active piece");
                 // Try to drop active piece down by one, and queue next fall event.
                 if let Some(dropped_piece) = prev_piece.fits_at(&self.state.board, (0, -1)) {
-                    let mut drop_delay = Self::drop_delay(&self.state.level);
+                    let soft_drop = self.state.buttons_pressed[Button::DropSoft]
+                        .then_some(self.config.soft_drop_factor);
+                    let mut drop_delay = Self::drop_delay(self.state.level, soft_drop);
                     if self.state.buttons_pressed[Button::DropSoft] {
                         drop_delay = Duration::from_secs_f64(
                             drop_delay.as_secs_f64() / self.config.soft_drop_factor.max(0.00001),
@@ -1104,7 +1222,7 @@ impl Game {
                 last_touchdown: None,
                 last_liftoff: Some(event_time),
                 ground_time_left: self.config.ground_time_max,
-                lowest_y: next_piece.pos.1,
+                lowest_y: next_piece.position.1,
             },
             // [2] Active piece lifted off the ground.
             (Some((_prev_piece, prev_locking_data)), false) if prev_locking_data.touches_ground => {
@@ -1120,7 +1238,7 @@ impl Game {
                 let next_locking_data = match prev_piece_data {
                     // If previous piece exists and next piece hasn't reached newest low (i.e. not a reset situation).
                     Some((_prev_piece, prev_locking_data))
-                        if next_piece.pos.1 >= prev_locking_data.lowest_y =>
+                        if next_piece.position.1 >= prev_locking_data.lowest_y =>
                     {
                         // Previously touched ground already, just continue previous data.
                         if prev_locking_data.touches_ground {
@@ -1143,7 +1261,7 @@ impl Game {
                                 Some(last_touchdown) => {
                                     let (last_touchdown, ground_time_left) = if event_time
                                         .saturating_sub(last_liftoff)
-                                        <= 2 * Self::drop_delay(&self.state.level)
+                                        <= 2 * Self::drop_delay(self.state.level, None)
                                     {
                                         (
                                             prev_locking_data.last_touchdown,
@@ -1182,7 +1300,7 @@ impl Game {
                         last_touchdown: Some(event_time),
                         last_liftoff: None,
                         ground_time_left: self.config.ground_time_max,
-                        lowest_y: next_piece.pos.1,
+                        lowest_y: next_piece.position.1,
                     },
                 };
                 // Set lock timer if there isn't one, or refresh it if piece was moved.
@@ -1214,8 +1332,8 @@ impl Game {
     }
 
     #[rustfmt::skip]
-    const fn drop_delay(level: &NonZeroU32) -> Duration {
-        Duration::from_nanos(match level.get() {
+    fn drop_delay(level: NonZeroU32, soft_drop: Option<f64>) -> Duration {
+        let mut drop_delay = Duration::from_nanos(match level.get() {
              1 => 1_000_000_000,
              2 =>   793_000_000,
              3 =>   617_796_000,
@@ -1235,7 +1353,13 @@ impl Game {
             17 =>     2_520_084,
             18 =>     1_457_139,
              _ =>       823_907, // NOTE: 20G is at `833_333`, but falling speeds at that level are handled especially by the engine.
-        })
+        });
+        if let Some(soft_drop_factor) = soft_drop {
+            drop_delay = Duration::from_secs_f64(
+                drop_delay.as_secs_f64() / soft_drop_factor.max(0.00001),
+            );
+        }
+        drop_delay
     }
 
     #[rustfmt::skip]

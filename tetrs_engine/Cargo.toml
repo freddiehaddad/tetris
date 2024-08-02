@@ -2,6 +2,8 @@
 name = "tetrs_engine"
 version = "0.1.0"
 edition = "2021"
+description = "An implementation of a tetromino game engine, able to handle numerous modern mechanics."
+license = "MIT"
 
 [dependencies]
 rand = "0.8.5"

@@ -1,6 +1,6 @@
 use tetrs_engine::{
-    Feedback, FeedbackEvents, GameConfig, GameMode, GameState, InternalEvent, ModifierPoint,
-    Tetromino, TetrominoGenerator,
+    piece_generation::TetrominoGenerator, Feedback, FeedbackEvents, GameConfig, GameMode,
+    GameState, InternalEvent, ModifierPoint, Tetromino,
 };
 
 #[allow(dead_code)]

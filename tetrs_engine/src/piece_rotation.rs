@@ -1,14 +1,37 @@
 use crate::{ActivePiece, Board, Orientation, Tetromino};
 
+/// Handles the logic of how to rotate a tetromino in play.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RotationSystem {
+    /// The self-developed 'Ocular' rotation system.
     Ocular,
+    /// The right-handed variant of the classic, kick-less rotation system used in NES Tetris.
     Classic,
+    /// The Super Rotation System as used in the modern standard.
     Super,
 }
 
 impl RotationSystem {
+    /// Tries to rotate a piece with the chosen `RotationSystem`.
+    ///
+    /// This will return `None` if the rotation is not possible, and `Some(p)` if the rotation
+    /// succeeded with `p` as the new state of the piece.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tetrs_engine::*;
+    /// # let game = Game::new(GameMode::marathon());
+    /// # let empty_board = &game.state().board;
+    /// let i_piece = ActivePiece { shape: Tetromino::I, orientation: Orientation::N, pos: (0, 0) };
+    ///
+    /// // Rotate left once.
+    /// let i_rotated = RotationSystem::Ocular.rotate(&i_piece, empty_board, -1);
+    ///
+    /// let i_expected = ActivePiece { shape: Tetromino::I, orientation: Orientation::W, pos: (1, 0) };
+    /// assert_eq!(i_rotated, Some(i_expected));
+    /// ```
     pub fn rotate(
         &self,
         piece: &ActivePiece,
@@ -16,37 +39,14 @@ impl RotationSystem {
         right_turns: i32,
     ) -> Option<ActivePiece> {
         match self {
-            RotationSystem::Classic => rotate_classic(piece, board, right_turns),
-            RotationSystem::Super => rotate_super(piece, board, right_turns),
-            RotationSystem::Ocular => rotate_ocular(piece, board, right_turns),
-        }
-    }
-
-    pub fn place_initial(&mut self, shape: Tetromino) -> ActivePiece {
-        let pos = match shape {
-            Tetromino::O => (4, 20),
-            _ => (3, 20),
-        };
-        let orientation = Orientation::N;
-        /* NOTE: Unused spawn positions/orientations. While nice and symmetrical :): also unusual.
-        let (orientation, pos) = match shape {
-            Tetromino::O => (Orientation::N, (4, 20)),
-            Tetromino::I => (Orientation::N, (3, 20)),
-            Tetromino::S => (Orientation::E, (4, 20)),
-            Tetromino::Z => (Orientation::W, (4, 20)),
-            Tetromino::T => (Orientation::N, (3, 20)),
-            Tetromino::L => (Orientation::E, (4, 20)),
-            Tetromino::J => (Orientation::W, (4, 20)),
-        };*/
-        ActivePiece {
-            shape,
-            orientation,
-            pos,
+            RotationSystem::Classic => classic_rotate(piece, board, right_turns),
+            RotationSystem::Super => super_rotate(piece, board, right_turns),
+            RotationSystem::Ocular => ocular_rotate(piece, board, right_turns),
         }
     }
 }
 
-fn rotate_ocular(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
     /*
     Symmetries : "OISZTLJ NESW ↺↻" and "-" mirror.
     O N      :
@@ -164,7 +164,7 @@ fn rotate_ocular(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
     }
 }
 
-fn rotate_super(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+fn super_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
     let left = match right_turns.rem_euclid(4) {
         // No rotation occurred.
         0 => return Some(*piece),
@@ -216,7 +216,7 @@ fn rotate_super(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<
     piece.first_fit(board, kicks, right_turns)
 }
 
-fn rotate_classic(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+fn classic_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
     let left_rotation = match right_turns.rem_euclid(4) {
         // No rotation occurred.
         0 => return Some(*piece),
