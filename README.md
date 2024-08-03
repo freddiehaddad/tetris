@@ -62,6 +62,19 @@
 
 </details>
 
+
+**Retro 'Electronika 60' graphics available:**
+
+<details>
+
+<summary>Electronika 60 demo PNG</summary>
+
+![Electronika 60 demo PNG](Gallery/Screenshots/tetrs_screenshot-electronika-60.png)
+
+*\*For display like in the screenshot set your terminal text color to green and font to a Unicode-compatible one (e.g. `DejaVu Sans Mono` works)*
+
+</details>
+
 > [!TIP]
 > Play **Puzzle Mode** with its 21 stages to try the special ['ocular' rotation system](#ocular-rotation-system) *(feat. T-spin Triples)*!
 > 
