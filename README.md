@@ -93,7 +93,7 @@
 ### Gamemodes
 - 'Marathon' (reach lvl 20) - 'Sprint' (40-Lines) - 'Ultra' (Time Trial) - Master (20G).
 - Puzzle Mode
-  - Perfect-clear yourself through short puzzle stages with piece acrobatics enabled by the self-developed 'ocular' rotation system! *(\*Up to four attempts per puzzle stage.)*
+  - Perfect-clear yourself through short puzzle stages with piece acrobatics enabled by the self-developed 'ocular' rotation system! *(\*Up to five attempts per puzzle stage.)*
 - Custom Mode
   - Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or None)*.
 

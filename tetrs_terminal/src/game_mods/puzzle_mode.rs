@@ -5,7 +5,7 @@ use tetrs_engine::{
     InternalEvent, Limits, ModifierPoint, Tetromino,
 };
 
-const MAX_STAGE_ATTEMPTS: usize = 4; // TODO: Remove.
+const MAX_STAGE_ATTEMPTS: usize = 5; // TODO: Remove.
 const SPEED_LEVEL: u32 = 3;
 
 pub fn make_game() -> Game {
@@ -28,7 +28,7 @@ pub fn make_game() -> Game {
                     puzzle_name.to_ascii_uppercase()
                 )
             } else {
-                format!("{}. TRY ({})", attempt, puzzle_name.to_ascii_uppercase())
+                format!("{} ATT. LEFT ({})", MAX_STAGE_ATTEMPTS + 1 - attempt, puzzle_name.to_ascii_uppercase())
             }),
         ));
         // Queue pieces and lines.
