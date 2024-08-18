@@ -10,7 +10,7 @@ const SPEED_LEVEL: u32 = 3;
 
 pub fn make_game() -> Game {
     #[rustfmt::skip]
-    let puzzles = list_of_puzzles();
+    let puzzles = puzzle_list();
     let puzzles_len = puzzles.len();
     let load_puzzle = move |state: &mut GameState,
                             attempt: usize,
@@ -153,8 +153,9 @@ pub fn make_game() -> Game {
     game
 }
 
+#[allow(clippy::type_complexity)]
 #[rustfmt::skip]
-fn list_of_puzzles() -> [(&'static str, Vec<&'static [u8; 10]>, VecDeque<Tetromino>); 24] {
+fn puzzle_list() -> [(&'static str, Vec<&'static [u8; 10]>, VecDeque<Tetromino>); 24] {
     [
         /* Puzzle template.
         ("puzzlename", vec![
