@@ -1366,11 +1366,11 @@ impl Game {
                         self.state.board.remove(y);
                         self.state.board.push(Default::default());
                         self.state.lines_cleared += 1;
+                        // Increment level if 10 lines cleared.
+                        if self.mode.increment_level && self.state.lines_cleared % 10 == 0 {
+                            self.state.level = self.state.level.saturating_add(1);
+                        }
                     }
-                }
-                // Increment level if 10 lines cleared.
-                if self.mode.increment_level && self.state.lines_cleared % 10 == 0 {
-                    self.state.level = self.state.level.saturating_add(1);
                 }
                 self.state.events.insert(
                     InternalEvent::Spawn,

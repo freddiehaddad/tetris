@@ -28,7 +28,11 @@ pub fn make_game() -> Game {
                     puzzle_name.to_ascii_uppercase()
                 )
             } else {
-                format!("{} ATT. LEFT ({})", MAX_STAGE_ATTEMPTS + 1 - attempt, puzzle_name.to_ascii_uppercase())
+                format!(
+                    "{} ATT. LEFT ({})",
+                    MAX_STAGE_ATTEMPTS + 1 - attempt,
+                    puzzle_name.to_ascii_uppercase()
+                )
             }),
         ));
         // Queue pieces and lines.

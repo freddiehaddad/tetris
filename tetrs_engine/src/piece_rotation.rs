@@ -168,7 +168,8 @@ fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
     }
 }
 
-/*fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
+/* TODO: Remove ORS v2.X.
+fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option<ActivePiece> {
     /*
     Symmetries : "OISZTLJ NESW ↺↻" and "-" mirror.
     O N      :
