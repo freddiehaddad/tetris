@@ -578,16 +578,18 @@ All in all, Rust, known for its safety and performance - while still having high
 
 Also, I'd like to appreciate how nice the name *tetrs* fits for a Rust game that does not infringe on copyright <sup>~~though there are, like, a quadrillion other [`tetrs`](https://github.com/search?q=%22tetrs%22&type=repositories)'s on GitHub, ooof~~</sup>.
 
-For the terminal GIF recordings I used [asciinema](https://asciinema.org/) + [agg](https://github.com/asciinema/agg):
-```bash
-agg --font-family="DejaVu Sans Mono" --line-height=1.17 --renderer=resvg --font-size=20, --fps-cap=30 --last-frame-duration=0  my_rec.cast my_rec.gif
-```
-
+- For the menu navigation graph I used [graphviz](http://magjac.com/graphviz-visual-editor/).
+- For the terminal GIF recordings I used [asciinema](https://asciinema.org/) + [agg](https://github.com/asciinema/agg):
+  ```bash
+  agg --font-family="DejaVu Sans Mono" --line-height=1.17 --renderer=resvg --font-size=20, --fps-cap=30 --last-frame-duration=0  my_rec.cast my_rec.gif
+  ```
 
 
 <div  align="center">
 
 *„Piecement Places!“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
+
+Have a nice day /
   
 `██ ▄▄▄▄ ▄█▀ ▀█▄ ▄█▄ ▄▄█ █▄▄`
 
