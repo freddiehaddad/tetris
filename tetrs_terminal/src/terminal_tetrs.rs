@@ -1267,7 +1267,7 @@ impl<T: Write> App<T> {
             self.term
                 .queue(MoveTo(
                     x_main,
-                    y_main + y_selection + 4 + u16::try_from(selection_len+1).unwrap() + 2,
+                    y_main + y_selection + 4 + u16::try_from(selection_len + 1).unwrap() + 2,
                 ))?
                 .queue(PrintStyledContent(
                     format!("{:^w_main$}", "Use [←] [→] [↑] [↓] [Esc] [Enter].",).italic(),
@@ -1451,22 +1451,14 @@ impl<T: Write> App<T> {
                     y_main + y_selection + 4 + u16::try_from(selection_len).unwrap() + 3,
                 ))?
                 .queue(PrintStyledContent(
-                    format!(
-                        "{:^w_main$}",
-                        "Press [Enter] to add keybinds.",
-                    )
-                    .italic(),
+                    format!("{:^w_main$}", "Press [Enter] to add keybinds.",).italic(),
                 ))?
                 .queue(MoveTo(
                     x_main,
                     y_main + y_selection + 4 + u16::try_from(selection_len).unwrap() + 4,
                 ))?
                 .queue(PrintStyledContent(
-                    format!(
-                        "{:^w_main$}",
-                        "Press [Delete] to remove keybinds.",
-                    )
-                    .italic(),
+                    format!("{:^w_main$}", "Press [Delete] to remove keybinds.",).italic(),
                 ))?;
             self.term.flush()?;
             // Wait for new input.
@@ -1536,7 +1528,9 @@ impl<T: Write> App<T> {
                         self.settings.keybinds.clear();
                     } else {
                         let current_button = button_selection[selected];
-                        self.settings.keybinds.retain(|_code, button| *button != current_button);
+                        self.settings
+                            .keybinds
+                            .retain(|_code, button| *button != current_button);
                     }
                 }
                 // Move selector up.

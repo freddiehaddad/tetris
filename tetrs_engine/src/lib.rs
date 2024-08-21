@@ -1392,6 +1392,7 @@ impl Game {
                     .insert(InternalEvent::MoveFast, event_time);
             }
             // No fall event scheduled but piece might be able to, schedule fall event.
+            #[allow(clippy::map_entry)]
             if !self.state.events.contains_key(&InternalEvent::Fall) {
                 let soft_drop = self.state.buttons_pressed[Button::DropSoft]
                     .then_some(self.config.soft_drop_factor);
