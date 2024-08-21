@@ -1240,9 +1240,14 @@ impl<T: Write> App<T> {
                 if self.settings.save_data_on_exit {
                     "Keep savefile for tetrs : On"
                 } else {
-                    "Keep savefile for tetrs : Off [WARNING: data will be lost on exit!]"
+                    "Keep savefile for tetrs : Off (!)"
                 }
                 .to_string(),
+                if self.settings.save_data_on_exit {
+                    format!("(savefile: {:?})", Self::savefile_path())
+                } else {
+                    "(WARNING - data will be lost on exit.)".to_string()
+                },
             ];
             for (i, label) in labels.into_iter().enumerate() {
                 self.term
@@ -1262,7 +1267,7 @@ impl<T: Write> App<T> {
             self.term
                 .queue(MoveTo(
                     x_main,
-                    y_main + y_selection + 4 + u16::try_from(selection_len).unwrap() + 2,
+                    y_main + y_selection + 4 + u16::try_from(selection_len+1).unwrap() + 2,
                 ))?
                 .queue(PrintStyledContent(
                     format!("{:^w_main$}", "Use [←] [→] [↑] [↓] [Esc] [Enter].",).italic(),
@@ -1436,9 +1441,9 @@ impl<T: Write> App<T> {
                 .queue(Print(format!(
                     "{:^w_main$}",
                     if selected == selection_len - 1 {
-                        ">>> [reset keybinds] <<<"
+                        ">>> [restore defaults] <<<"
                     } else {
-                        "[reset keybinds]"
+                        "[restore defaults]"
                     }
                 )))?;
             self.term
@@ -1561,20 +1566,20 @@ impl<T: Write> App<T> {
                 ),
                 format!("preview count : {}", self.game_config.preview_count),
                 format!(
-                    "**delayed auto shift : {:?}",
+                    "*delayed auto shift : {:?}",
                     self.game_config.delayed_auto_shift
                 ),
                 format!(
-                    "**auto repeat rate : {:?}",
+                    "*auto repeat rate : {:?}",
                     self.game_config.auto_repeat_rate
                 ),
-                format!("**soft drop factor : {}", self.game_config.soft_drop_factor),
+                format!("*soft drop factor : {}", self.game_config.soft_drop_factor),
                 format!("hard drop delay : {:?}", self.game_config.hard_drop_delay),
                 format!("ground time max : {:?}", self.game_config.ground_time_max),
                 format!("line clear delay : {:?}", self.game_config.line_clear_delay),
                 format!("appearance delay : {:?}", self.game_config.appearance_delay),
                 format!(
-                    "*no soft drop lock : {}",
+                    "**no soft drop lock : {}",
                     self.game_config.no_soft_drop_lock
                 ),
             ];
@@ -1613,11 +1618,11 @@ impl<T: Write> App<T> {
                 ))?
                 .queue(Print(format!(
                     "{:^w_main$}",
-                    format!(
-                        "(*automatically {} because keyboard enhancements are {}available)",
-                        if self.kitty_enabled { "off" } else { "on" },
-                        if self.kitty_enabled { "" } else { "UN" }
-                    )
+                    if self.kitty_enabled {
+                        "(*working correctly, as keyboard enhancements are available)"
+                    } else {
+                        "(*NO effect, as keyboard enhancements are UNavailable)"
+                    },
                 )))?;
             self.term
                 .queue(MoveTo(
@@ -1626,7 +1631,11 @@ impl<T: Write> App<T> {
                 ))?
                 .queue(Print(format!(
                     "{:^w_main$}",
-                    "(**only take effect if keyboard enhancements are available)"
+                    format!(
+                        "(**toggled to {} because keyboard enhancements were {}available)",
+                        !self.kitty_enabled,
+                        if self.kitty_enabled { "" } else { "UN" }
+                    )
                 )))?;
             self.term.flush()?;
             // Wait for new input.
