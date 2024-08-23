@@ -98,7 +98,15 @@ fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
     #[rustfmt::skip]
     let kicks = 'calculate_kicks: loop {
         match shape {
-            Tetromino::O => break [( 0, 0)].iter(),
+            Tetromino::O => {
+                if !left {
+                    let mx = 0;
+                    (mirror, left) = (Some(mx), !left);
+                    continue 'calculate_kicks;
+                } else  {
+                    break [(-1, 0), (-1,-1), (-1, 1), ( 0, 0)].iter();
+                }
+            },
             Tetromino::I => {
                 if !left {
                     let mx = match orientation {
@@ -148,8 +156,8 @@ fn ocular_rotate(piece: &ActivePiece, board: &Board, right_turns: i32) -> Option
                 E => if left { [(-1, 1), (-2, 1), (-1, 0), (-2, 0), ( 0, 0), ( 0, 1)].iter() }
                         else { [(-1, 0), ( 0, 0), ( 0,-1), (-1,-1), ( 0, 1), (-1, 1)].iter() },
                 S => if left { [( 1, 0), ( 0, 0), ( 1,-1), ( 0,-1), ( 0, 1), ( 1, 1)].iter() }
-                        else { [( 0, 0), ( 0,-1), ( 1,-1), (-1,-1), ( 1, 0), (-1, 0)].iter() },
-                W => if left { [( 0, 0), (-1, 0), ( 0, 1), ( 1, 0), (-1, 1), ( 1, 1), ( 0,-1)].iter() }
+                        else { [( 0, 0), ( 0,-1), ( 1,-1), (-1,-1), ( 1, 0), (-1, 0), ( 0, 1)].iter() },
+                W => if left { [( 0, 0), (-1, 0), ( 0, 1), ( 1, 0), (-1, 1), ( 1, 1), ( 0,-1), (-1,-1)].iter() }
                         else { [( 0, 1), (-1, 1), ( 0, 0), (-1, 0), ( 0, 2), (-1, 2)].iter() },
             },
             Tetromino::J => {
