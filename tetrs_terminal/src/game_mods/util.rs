@@ -13,7 +13,7 @@ pub fn display_tetromino_likelihood(
 ) {
     if matches!(event, ModifierPoint::AfterEvent(InternalEvent::Spawn)) {
         let TetrominoGenerator::Recency { last_generated: lg } = config.tetromino_generator else {
-            panic!()
+            return;
         };
         let mut pieces_played_strs = [
             Tetromino::O,

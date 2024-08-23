@@ -8,7 +8,7 @@ use tetrs_engine::{
 const MAX_STAGE_ATTEMPTS: usize = 5; // TODO: Remove.
 const SPEED_LEVEL: u32 = 3;
 
-pub fn make_game() -> Game {
+pub fn new_game() -> Game {
     #[rustfmt::skip]
     let puzzles = puzzle_list();
     let puzzles_len = puzzles.len();
@@ -57,7 +57,7 @@ pub fn make_game() -> Game {
         }
         puzzle_pieces.len()
     };
-    let mut init = true;
+    let mut init = false;
     let mut current_puzzle_idx = 0; //+16+8; // TODO: Remove.
     let mut current_puzzle_attempt = 1;
     let mut current_puzzle_piececnt_limit = 0;
@@ -70,7 +70,7 @@ pub fn make_game() -> Game {
             // TODO: Remove.
             // config.soft_drop_factor = 0.0;
             let game_piececnt = usize::try_from(state.pieces_played.iter().sum::<u32>()).unwrap();
-            if init {
+            if !init {
                 let piececnt = load_puzzle(
                     state,
                     current_puzzle_attempt,
@@ -78,7 +78,7 @@ pub fn make_game() -> Game {
                     feedback_events,
                 );
                 current_puzzle_piececnt_limit = game_piececnt + piececnt;
-                init = false;
+                init = true;
             } else if matches!(
                 modifier_point,
                 ModifierPoint::BeforeEvent(InternalEvent::Spawn)
