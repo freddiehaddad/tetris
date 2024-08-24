@@ -291,13 +291,13 @@ Unlike bag it possibly provides a more continuous "gut feeling" of what piece(s)
 
 — *said no one ever, not even [the creator of Tetris himself](https://youtu.be/6YhkkyXydNI?si=jbVwfNtfl5yFh9Gk&t=674).*
 
-Considering the sheer size of the franchise and range of players coming from all sorts of niches and previous game version the *"Super Rotation System"* [gets its job done](https://www.youtube.com/watch?v=dgt1kWq2_7c)™, but it does not change the fact that it was *the* mechanic I thought about redoing when thinking about this project.
+Considering the sheer size of the franchise and range of players coming from all sorts of niches and previous game version the official *Super Rotation System* ['gets its job done'](https://www.youtube.com/watch?v=dgt1kWq2_7c)™ - nevertheless it was *the* mechanic I wanted to redo even before starting this project.
 
 <details>
 
 <summary> Creating a Rotation System. </summary>
 
-To summarize, my personal problems with SRS were:
+My personal gripes with SRS are:
 
 - The system is not symmetric.
   - Symmetric pieces can look exactly the same in different rotation states, **[but have different behaviour](https://blog.battlefy.com/how-accidental-complexity-harms-the-tetris-community-93311461b2af)**.
@@ -306,47 +306,87 @@ To summarize, my personal problems with SRS were:
 - <sup>Not a hot take, but some rotations are just *weird* (to be chosen over other possibilities).</sup>
 - Piece elevators.
 
-Good criteria for a rotation system I can think of would be:
+Good general criteria for a rotation system I can think of would be:
 
-1. Symmetric rotations if the board and piece were appropriately mirrored.
-2. Equal-looking states must have the same behaviour.
-3. The kicks should look sensible *(first try the first position one would expect, only then more lenient positions)*.
-4. The kicks should be fun *(if it looks like 'it could reasonably rotate', it should)*.
-5. "Don't overdo it with crazy kicks but still allow some neat stuff"
+1. Rotation must behave visually **symmetrically**;
+    - equal-looking rotation states must behave the same,
+    - and mirroring the board/pieces mirrors the rotation behaviour perfectly.
+2. The kicks should be **intuitive**
+    - the way pieces rotate should look 'feasible' to any given person;
+    - e.g. the new position cannot be completely disjoint from previously.
+3. Rotation should be fun! :D
+    - but also any rotations should 'feel good' to a player.
+    - (but don't overdo it - no teleporting pieces.)
 
-The result of this was the *'Ocular' Rotation System*, which was made by... *looking* at each piece orientation and drawing the most *visually* sensible position(s) for it to land in after rotating.
+The result of this was the *'Ocular' Rotation System*, which was made by... *looking* at each piece and orientation and drawing the 'best' position(s) for it to land in after rotating (following above points and gut feeling).
 
-By overlapping all the kicks that are tested sequentially in order, one gets a compact heatmap of where the piece will land, going from hottest color (bright yellow, first kick) to coldest (darkest purple, last kick attempt):
-
-<details>
-
-<summary> Ocular Rotation System Heatmap </summary>
+I present to you - the Ocular Rotation System Heatmap:
 
 ![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system_16px.png)
 
-</details>
+*How to read it*:
+This heatmap is created by considering each combination of (piece, orientation, rotate left or right).
+By overlapping all the _new_ possible positions for a piece after rotation, one gets a compact visualization of where the piece will most likely land, going from brightest color (yellow, first position attempt) to darkest (purple, last attempt):
 
-Here's a comparison with SRS:
-
-<details>
-
-<summary> Super Rotation System Heatmap </summary>
+Here's a comparison with SRS - the Super Rotation System Heatmap:
 
 ![Super Rotation System Heatmap](Gallery/super-rotation-system_16px.png)
 
-</details>
-
-So with SRS, although one does start to spot the vague rotational symmetries that were intended), they're overshadowed by asymmetrical kick states and quite lenient (upwards) vertical kicks all over the place.
+With SRS one starts to spot some rotational symmetries (you can always rotate back-and-forth between two positions), but I think it's overshadowed by all the asymmetrical kicks and very lenient (downwards *and upwards*) vertical kicks that contribute to SRS' unintuitiveness.
 
 </details>
 
 In the end I'm happy with how the custom rotation system turned out.
 It vaguely follows the mantra "if the rotation looks like it could reasonably work visually, it should" (+ some added kicks for flexibility and fun).
 
-*(\*Bonus: the code can use the symmetry of the system and only store the minimum kick table required!)*
+<details>
 
-On the fun side, *Puzzle Mode* in the playable application is intended to show off some of the spins possible with this system; 
-Feel free to try it out! I somehow still managed to include a ("sensible") *T-Spin Triple!*
+<summary> Ocular Rotation System - Comments </summary>
+
+The general rationale behind most kicks is, "these first kicks feel most natural, any additional kicks after that serve flexibility, cool tricks and skill ceiling". However, more concrete heuristics can be stated:
+- A general trend with kicks is to *prevent needless upwarping* of pieces. This simply means we first prefer rotations into a position *further down* before trying further up (foregoing nonsensical upward kicks in the first place).
+- New positions must look 'visually close' to the original position. One thing observed in this system is that there are no disjoint rotation states, i.e. the old and new position always overlap in at least one tile. This heuristic also influenced the **L**/**J** rotations, always incorporating all rotations where *two* of the new pieces overlap with the old.
+- The **I**, **S** and **Z** pieces are more rotationally symmetric than **T**, **L** and **J**, yielding the same visual shape whether rotated left or right.
+  However, they do not have a natural 'center' in a way that would allow them to be rotated precisely in this sense, forcing us to choose their new position to be more left or right. We use this to our advantage and allow the player to have direct control over this by inputting one of the two rotation directions. This may arguably aid both directional intuition as well as allow for better finesse. It should not hurt rotational intuition ("piece stays in place if rotated 360°") as a player in a sense would never need to rotate such symmetrical pieces (especially mid-air) more than once anyway. :P
+
+
+*\*Notation*: `nTlr 0-3` describes kick positions `0` to `3` when rotating a `n`orth-facing `T`-piece to the `l`eft _or_ `r`ight.
+
+![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system_16px.png)
+
+- **O**-piece.
+  - As the most symmetrical piece, having no kicks would be most natural, but also make it the only piece where rotation is 'useless'. Adding limited kicks however already turns out to be very useful to the player:
+    - `nOl 0`: Simple sideways O-'roll', providing a second way to move O.
+    - `nOl 1`: Allows for O-spins.
+    - `nOl 2`: Also allows for O-spins and - more likely - 'rolling' the O out of a shallow well, possibly useful under high gravity.
+- **I**-piece.
+  - As the longest piece, it has the most kicks to accommodate its visual range. What's special is that in its horizontal position it may rotate left or right into *any* reachable space around itself.
+    - `nIl 0-7`: Rotating in it from a horizontal to a vertical position will very strongly prefer placing it in the desired direction of rotation first.
+    - `nIl 8-9`: Fallback rotation states.
+    - `eIl 5-6`: Allows tucking the I down flat.
+    - Non-existent higher-positioned `eIl`: Intentionally left away to prevent upwarping.
+- **S**/**Z**-piece.
+  - The rotations for these pieces also allow for directional finesse.
+    - `nSZlr`: Kept simple and symmetrical.
+    - `eSr 2`|`eZl 2`: Useful and commonly applicable S/Z spin.
+    - `eSl 2`|`eZr 2`: Tucking in an S/Z in this position might be handy.
+- **T**-piece.
+  - This piece has a relatively natural center of rotation, making for a good first rotation reposition.
+    - `neswTlr 0`: 'Center' rotation.
+    - `nTlr 4`: A T-'turn'.
+    - `eTl 4`|`wTr 4`: A T-'insert', allowing it to warp down.
+    - `sTlr 4`: A T-'turn'.
+    - `sTlr 5`: This kick enables T-spin triples.
+    - `wTl 3-4`|`eTr 3-4`: Two T-'turns'.
+- **L**/**J**-piece.
+  - Surprisingly, the most common center of rotation for L/J does not lead to a first rotation reposition where an overlap of two tiles with the original position is observed.
+    - `neswLJlr 0`: 'Center' rotation.
+    - `nLl 4`|`nJr 4`, `eLl 5`|`wJr 5`, `sLl 2`|`sJr 2`, `wLl 1`|`wJr 1`: Additional 'wall'-kicks that come after trying the 'center' rotation.
+    - `nLr 4`|`nJl 4`, `eLr 5`|`wJl 5`, `sLr 4`|`sJl 4`, `wLr 2`|`eJl 2`: Somewhat weird kicks that are mostly included due to context and symmetry in rotation.
+    - `wLl 6-7`|`eJr 6-7`: Two ways to specially tuck an L/J down.
+    - `sLr 6`|`sJl 6`: Allows rotation into upright state even when resting on other blocks in a well.
+
+</details>
 
 
 ## Piece Locking
