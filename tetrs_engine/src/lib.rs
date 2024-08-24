@@ -45,7 +45,7 @@ pub mod piece_rotation;
 use std::{
     collections::{HashMap, VecDeque},
     fmt,
-    num::NonZeroU32,
+    num::{NonZeroU32, NonZeroU8},
     ops,
     time::Duration,
 };
@@ -55,9 +55,9 @@ pub use piece_rotation::RotationSystem;
 use rand::rngs::ThreadRng;
 
 /// A mapping for which buttons are pressed, usable through `impl Index<Button> for [T; 8]`.
-pub type ButtonsPressed = [bool; 8];
+pub type ButtonsPressed = [bool; 9];
 /// Abstract identifier for which type of tile occupies a cell in the grid.
-pub type TileTypeID = NonZeroU32;
+pub type TileTypeID = NonZeroU8;
 /// The type of horizontal lines of the playing grid.
 pub type Line = [Option<TileTypeID>; Game::WIDTH];
 // NOTE: Would've liked to use `impl Game { type Board = ...` (https://github.com/rust-lang/rust/issues/8995)
@@ -104,6 +104,8 @@ pub enum Button {
     /// **without** locking it immediately or performing any other special handling
     /// with respect to locking.
     DropSonic,
+    /// Holding and swapping in a held piece.
+    Hold,
 }
 
 /// Represents the orientation an active piece can be in.
@@ -254,6 +256,8 @@ pub enum InternalEvent {
     /// Event of the current [`ActivePiece`] being fixed on the board, allowing no further updates
     /// to its state.
     Lock,
+    /// Event of trying to hold / swap out the current piece.
+    HoldPiece,
     /// Event of the active piece being dropped down and a fast [`InternalEvent::LockTimer`] being initiated.
     HardDrop,
     /// Event of the active piece being dropped down (without any further action or locking).
@@ -308,6 +312,8 @@ pub struct GameState {
     pub board: Board,
     /// All relevant data of the current piece in play.
     pub active_piece_data: Option<(ActivePiece, LockingData)>,
+    /// Data about the piece being held. `true` denotes that the held piece can be swapped back in.
+    pub holding_piece: Option<(Tetromino, bool)>,
     /// Upcoming pieces to be played.
     pub next_pieces: VecDeque<Tetromino>,
     /// Tallies of how many pieces of each type have been played so far.
@@ -472,7 +478,7 @@ impl Tetromino {
             J => 7,
         };
         // SAFETY: Ye, `u8 > 0`;
-        unsafe { NonZeroU32::new_unchecked(u8) }
+        unsafe { NonZeroU8::new_unchecked(u8) }
     }
 }
 
@@ -689,7 +695,7 @@ impl GameMode {
     }
 }
 
-impl<T> ops::Index<Button> for [T; 8] {
+impl<T> ops::Index<Button> for [T; 9] {
     type Output = T;
 
     fn index(&self, idx: Button) -> &Self::Output {
@@ -702,11 +708,12 @@ impl<T> ops::Index<Button> for [T; 8] {
             Button::DropSoft => &self[5],
             Button::DropHard => &self[6],
             Button::DropSonic => &self[7],
+            Button::Hold => &self[8],
         }
     }
 }
 
-impl<T> ops::IndexMut<Button> for [T; 8] {
+impl<T> ops::IndexMut<Button> for [T; 9] {
     fn index_mut(&mut self, idx: Button) -> &mut Self::Output {
         match idx {
             Button::MoveLeft => &mut self[0],
@@ -717,6 +724,7 @@ impl<T> ops::IndexMut<Button> for [T; 8] {
             Button::DropSoft => &mut self[5],
             Button::DropHard => &mut self[6],
             Button::DropSonic => &mut self[7],
+            Button::Hold => &mut self[8],
         }
     }
 }
@@ -776,6 +784,7 @@ impl Game {
                 .take(Self::HEIGHT)
                 .collect(),
             active_piece_data: None,
+            holding_piece: None,
             next_pieces: VecDeque::new(),
             pieces_played: [0; 7],
             lines_cleared: 0,
@@ -997,9 +1006,9 @@ impl Game {
     /// player in form of a change of button states.
     fn add_input_events(&mut self, next_buttons_pressed: ButtonsPressed, update_time: GameTime) {
         #[allow(non_snake_case)]
-        let [mL0, mR0, rL0, rR0, rA0, dS0, dH0, dC0] = self.state.buttons_pressed;
+        let [mL0, mR0, rL0, rR0, rA0, dS0, dH0, dC0, h0] = self.state.buttons_pressed;
         #[allow(non_snake_case)]
-        let [mL1, mR1, rL1, rR1, rA1, dS1, dH1, dC1] = next_buttons_pressed;
+        let [mL1, mR1, rL1, rR1, rA1, dS1, dH1, dC1, h1] = next_buttons_pressed;
         /*
         Table:                                 Karnaugh map:
         | mL0 mR0 mL1 mR1                      |           !mL1 !mL1  mL1  mL1
@@ -1084,17 +1093,23 @@ impl Game {
                 update_time + Self::drop_delay(self.state.level, None),
             );
         }
+        // Hard drop button pressed.
+        if !dH0 && dH1 {
+            self.state
+                .events
+                .insert(InternalEvent::HardDrop, update_time);
+        }
         // Sonic drop button pressed
         if !dC0 && dC1 {
             self.state
                 .events
                 .insert(InternalEvent::SonicDrop, update_time);
         }
-        // Hard drop button pressed.
-        if !dH0 && dH1 {
+        // Hold button pressed
+        if !h0 && h1 {
             self.state
                 .events
-                .insert(InternalEvent::HardDrop, update_time);
+                .insert(InternalEvent::HoldPiece, update_time);
         }
     }
 
@@ -1180,6 +1195,21 @@ impl Game {
                 }
                 self.state.events.insert(InternalEvent::Fall, event_time);
                 Some(next_piece)
+            }
+            InternalEvent::HoldPiece => {
+                let prev_piece = prev_piece.expect("hold piece event but no active piece");
+                match self.state.holding_piece {
+                    None | Some((_, true)) => {
+                        if let Some((held_piece, _)) = self.state.holding_piece {
+                            self.state.next_pieces.push_front(held_piece);
+                        }
+                        self.state.holding_piece = Some((prev_piece.shape, false));
+                        self.state.events.clear();
+                        self.state.events.insert(InternalEvent::Spawn, event_time);
+                        None
+                    }
+                    _ => Some(prev_piece),
+                }
             }
             InternalEvent::Rotate(turns) => {
                 let prev_piece = prev_piece.expect("rotate event but no active piece");
@@ -1357,6 +1387,10 @@ impl Game {
                         event_time + self.config.appearance_delay,
                     );
                 }
+                self.state.holding_piece = self
+                    .state
+                    .holding_piece
+                    .map(|(held_piece, _swap_allowed)| (held_piece, true));
                 None
             }
             InternalEvent::LineClear => {

@@ -90,23 +90,23 @@
 
 # Features of the Application
 
-### Gamemodes
-- 'Sprint': Clear 40-Lines (as quickly as possible).
-- 'Marathon': Reach level 20 (with the highest score possible).
-- Master: Clear 300 lines (at 20G = instant falling speed).
-- Cheese: Eat yourself through 32 lines with random holes (with as few pieces as possible).
-- Puzzle Mode: Advance through all 24 puzzle stages using perfect clears (and up to 5 attempts), enabled by piece acrobatics of the 'ocular' rotation system.
-- Custom Mode: Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
-
 ### Gameplay
-- Familiar game experience of moving, rotating, hard-/softdropping *tetrominos* with the aim to clear lines.
-- Colorful pieces (following guideline).
+- Familiar stacker experience of moving, rotating, soft-/hard-dropping and holding *tetrominos* and clearing completed rows.
+- Colorful pieces.
 - Next piece preview.
 - Ghost piece.
 - Animations: Hard drop, Line clears and Piece locking.
 - Game stats: Level, Score, Lines, Time, Pieces generated.
 
 For more technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
+
+### Gamemodes
+- **40-Lines**: Clear 40-Lines as quickly as possible.
+- **Marathon**: Reach the highest speed level (with the highest score possible).
+- **Master**: Clear 300 lines starting *at* the highest speed level.
+- **Cheese**: Eat yourself through 32 lines with random holes (with as few pieces as possible).
+- **Puzzle**: Advance through all 24 puzzle stages using perfect clears (and up to 5 attempts), enabled by piece acrobatics of the 'ocular' rotation system.
+- **Custom**: Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
   
 ### Settings
 - Look of the game:
@@ -145,16 +145,16 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
 - **Keep Savefile**: By default this program won't store anything and just let you play the game. If you **do** want `tetrs_terminal` to restore your settings and past games in the future then make sure this is set to **"On"**!
   
 ### Scoreboard
-- History of games played in the current session (/in the past, if "Keep savefile" is turned on).
-- *(\*Games where 0 lines have been cleared are auto-deleted upon exit.)*
+- History of games played in the current session (or in the past, if "keep save file" is toggled on).
+- *(\*Games where 0 lines have been cleared are auto-deleted on exit.)*
 
 > [!NOTE]
-> If "Keep savefile for tetrs" is turned on then your settings and games will be stored in `.tetrs_terminal.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
+> If "keep save file for tetrs" is toggled ON then your settings and games will be stored in `.tetrs_terminal.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
 > | | Windows | Linux | macOS | other |
 > | -: | - | - | - | - |
 > | location | `%APPDATA%` | `~/.config/` | `~/Library/Application Support/` | (home directory) |
 > 
-> (If this fails it tries to store it locally (`./`)!)
+> (If this fails it tries to store it locally, `./`.)
 
 
 # Features of the Tetrs Engine
@@ -248,19 +248,26 @@ The game provides some useful feedback events upon every `update`, usually used 
 
 </details>
 
-*\*Many small details of the `tetrs_engine` may have been left out of this readme (such as the initial rotation mechanic that immediately rotates a piece if a rotation button is pressed upon spawning). It is intended that this might be elaborated on at a later point in time.*
 
-*\*Another minor defect is current crate documentation (`cargo doc --open`) being unfortunately sparse at this time. Apologies from the author; I hope this can be fixed sometime!*
-
-
-# State of the Code
+# State of the Project
 
 As much love and care went into building this project, it is of course not without its flaws;
 
-- The engine itself might contain niche bugs as of this time. A personal dream is to sometime go through `Game::update`, establish proper invariants, and prove that it is safe / panic-free!
-- With regards to the terminal game experience, the frontend, I argue is polished enough (much dedication went into making it nice!). Regardless of how it looks, it is very much lacking in aspects of code style. The code for the menus is ad-hoc, with rampant code duplication, no comments, and panic-freedom yet unproven.
+- The README is not comprehensive:
+  - Many small details of the `tetrs_engine` are not properly explained (e.g. the initial rotation mechanic, which allows spawning a piece immediately rotated if a rotation button was held).
+- The engine itself might contain niche bugs as of this time. Concrete improvements include:
+  - Better API documentation (`cargo doc --open`).
+  - Simplification of code.
+  - Proper commenting of implementation.
+  - Refactor of complicated systems (e.g. locking).
+  - Ideally: ensuring that `Game::update` is safe / actually panic-free.
+- With regards to the terminal game experience, I'd like to argue the frontend is polished enough (much dedication went into making it nice for a 'proof-of-concept'). Regardless of whether this is actually the case, it is very lacking in aspects of code style, defects include:
+  - The code for the menus is ad-hoc,
+  - code duplication runs rampant,
+  - no (or even worse, *wrong*) comments, and
+  - possible panics may still be hiding around the corner.
 
-A goal would be to amend these problems sometime, step-by-step.
+A goal of mine would be to (at least partially) amend these problems, step-by-step.
 
 
 # Project Highlights
@@ -347,7 +354,7 @@ With SRS one starts to spot some rotational symmetries (you can always rotate ba
 </details>
 
 In the end I'm happy with how the custom rotation system turned out.
-It vaguely follows the mantra "if the rotation looks like it could reasonably work visually, it should" (+ some added kicks for flexibility and fun).
+It vaguely follows the mantra "if the rotation looks like it could reasonably work visually, it should" (+ some added kicks for flexibility and fun :-), hence it's name, *Ocular* rotation system[.](https://ocularnebula.newgrounds.com/)
 
 <details>
 

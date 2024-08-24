@@ -2,6 +2,7 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
     io::{self, Write},
+    num::NonZeroU8,
     time::Duration,
 };
 
@@ -232,6 +233,7 @@ impl Renderer for CachedRenderer {
             buttons_pressed: _,
             board,
             active_piece_data,
+            holding_piece,
             next_pieces,
             pieces_played,
             lines_cleared,
@@ -346,7 +348,7 @@ impl Renderer for CachedRenderer {
                 format!("   Time elapsed       <! . . . . . . . . . .!>{:^14        }", focus_value),
                 format!("    {:<18            }<! . . . . . . . . . .!>              ", format_duration(*game_time)),
                 format!("                      <! . . . . . . . . . .!>              ", ),
-                format!("   PIECES             <! . . . . . . . . . .!>              ", ),
+                format!("   TETROMINOS         <! . . . . . . . . . .!>              ", ),
                 format!("   -------            <! . . . . . . . . . .!>              ", ),
                 format!("   {:<19             }<! . . . . . . . . . .!>              ", piececnts_o),
                 format!("   {:<19             }<! . . . . . . . . . .!>              ", piececnts_i_s_z),
@@ -362,9 +364,9 @@ impl Renderer for CachedRenderer {
             ],
             GraphicsStyle::ASCII => vec![
                 format!("                                                            ", ),
-                format!("                       +- - - - - - - - - - +{:-^w$       }+", "mode", w=mode_name_space),
-                format!("   ALL STATS           |                    |{: ^w$       }|", mode_name, w=mode_name_space),
-                format!("   ----------          |                    +{:-^w$       }+", "", w=mode_name_space),
+                format!("                +-hold-|- - - - - - - - - - +{:-^w$       }+", "mode", w=mode_name_space),
+                format!("   ALL STATS    |      |                    |{: ^w$       }|", mode_name, w=mode_name_space),
+                format!("   ----------   +------|                    +{:-^w$       }+", "", w=mode_name_space),
                 format!("   Level: {:<13       }|                    |  {           }", level, goal_name),
                 format!("   Score: {:<13       }|                    |{:^15         }", score, goal_value),
                 format!("   Lines: {:<13       }|                    |               ", lines_cleared),
@@ -372,7 +374,7 @@ impl Renderer for CachedRenderer {
                 format!("   Time elapsed        |                    |{:^15         }", focus_value),
                 format!("    {:<19             }|                    |               ", format_duration(*game_time)),
                 format!("                       |                    |-----next-----+", ),
-                format!("   PIECES              |                    |              |", ),
+                format!("   TETROMINOS          |                    |              |", ),
                 format!("   -------             |                    |              |", ),
                 format!("   {:<20              }|                    |--------------+", piececnts_o),
                 format!("   {:<20              }|                    |               ", piececnts_i_s_z),
@@ -388,9 +390,9 @@ impl Renderer for CachedRenderer {
             ],
         GraphicsStyle::Unicode => vec![
                 format!("                                                            ", ),
-                format!("                       ╓╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╥{:─^w$       }┐", "mode", w=mode_name_space),
-                format!("   ALL STATS           ║                    ║{: ^w$       }│", mode_name, w=mode_name_space),
-                format!("   ─────────╴          ║                    ╟{:─^w$       }┘", "", w=mode_name_space),
+                format!("                ┌─hold─╓╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╥{:─^w$       }┐", "mode", w=mode_name_space),
+                format!("   ALL STATS    │      ║                    ║{: ^w$       }│", mode_name, w=mode_name_space),
+                format!("   ─────────╴   └──────║                    ╟{:─^w$       }┘", "", w=mode_name_space),
                 format!("   Level: {:<13       }║                    ║  {           }", level, goal_name),
                 format!("   Score: {:<13       }║                    ║{:^15         }", score, goal_value),
                 format!("   Lines: {:<13       }║                    ║               ", lines_cleared),
@@ -398,7 +400,7 @@ impl Renderer for CachedRenderer {
                 format!("   Time elapsed        ║                    ║{:^15         }", focus_value),
                 format!("    {:<19             }║                    ║               ", format_duration(*game_time)),
                 format!("                       ║                    ║─────next─────┐", ),
-                format!("   PIECES              ║                    ║              │", ),
+                format!("   TETROMINOS          ║                    ║              │", ),
                 format!("   ──────╴             ║                    ║              │", ),
                 format!("   {:<20              }║                    ║──────────────┘", piececnts_o),
                 format!("   {:<20              }║                    ║               ", piececnts_i_s_z),
@@ -415,6 +417,7 @@ impl Renderer for CachedRenderer {
         };
         self.screen.buffer_from(base_screen);
         let (x_board, y_board) = (24, 1);
+        let (x_hold, y_hold) = (18, 2);
         let (x_preview, y_preview) = (48, 12);
         let (x_preview_small, y_preview_small) = (48, 14);
         let (x_preview_minuscule, y_preview_minuscule) = (48, 15);
@@ -429,13 +432,14 @@ impl Renderer for CachedRenderer {
             GraphicsColor::Color16 => {
                 |tile: TileTypeID| {
                     Some(match tile.get() {
-                        1 => Color::Yellow,
-                        2 => Color::DarkCyan,
-                        3 => Color::Green,
-                        4 => Color::DarkRed,
-                        5 => Color::DarkMagenta,
-                        6 => Color::Red,
-                        7 => Color::Blue,
+                          1 => Color::Yellow,
+                          2 => Color::DarkCyan,
+                          3 => Color::Green,
+                          4 => Color::DarkRed,
+                          5 => Color::DarkMagenta,
+                          6 => Color::Red,
+                          7 => Color::Blue,
+                        253 => Color::White,
                         254 => Color::DarkGrey,
                         255 => Color::Black,
                         t => unimplemented!("formatting unknown tile id {t}"),
@@ -445,13 +449,14 @@ impl Renderer for CachedRenderer {
             GraphicsColor::ColorRGB => {
                 |tile: TileTypeID| {
                     Some(match tile.get() {
-                        1 => Color::Rgb { r:254, g:203, b:  0 },
-                        2 => Color::Rgb { r:  0, g:159, b:218 },
-                        3 => Color::Rgb { r:105, g:190, b: 40 },
-                        4 => Color::Rgb { r:237, g: 41, b: 57 },
-                        5 => Color::Rgb { r:149, g: 45, b:152 },
-                        6 => Color::Rgb { r:255, g:121, b:  0 },
-                        7 => Color::Rgb { r:  0, g:101, b:189 },
+                          1 => Color::Rgb { r:254, g:203, b:  0 },
+                          2 => Color::Rgb { r:  0, g:159, b:218 },
+                          3 => Color::Rgb { r:105, g:190, b: 40 },
+                          4 => Color::Rgb { r:237, g: 41, b: 57 },
+                          5 => Color::Rgb { r:149, g: 45, b:152 },
+                          6 => Color::Rgb { r:255, g:121, b:  0 },
+                          7 => Color::Rgb { r:  0, g:101, b:189 },
+                        252 => Color::Rgb { r:255, g:255, b:255 },
                         254 => Color::Rgb { r:127, g:127, b:127 },
                         255 => Color::Rgb { r:  0, g:  0, b: 0 },
                         t => unimplemented!("formatting unknown tile id {t}"),
@@ -532,7 +537,6 @@ impl Renderer for CachedRenderer {
                 self.screen.buffer_str(tile_preview, color, pos);
             }
         }
-        // Draw small preview pieces 2,3,4.
         let preview_small = |t: &Tetromino| match t {
             Tetromino::O => "██",
             Tetromino::I => "▄▄▄▄",
@@ -542,6 +546,7 @@ impl Renderer for CachedRenderer {
             Tetromino::L => "▄▄█",
             Tetromino::J => "█▄▄",
         };
+        // Draw small preview pieces 2,3,4.
         let mut x_offset_small = 0;
         for tet in next_pieces.iter().skip(1).take(3) {
             let str = preview_small(tet);
@@ -574,6 +579,16 @@ impl Renderer for CachedRenderer {
                 ),
             );
             x_offset_minuscule += str.chars().count() + 1;
+        }
+        // Draw held piece.
+        if let Some((tet, swap_allowed)) = holding_piece {
+            let str = preview_small(tet);
+            let color = tile_color(if *swap_allowed {
+                tet.tiletypeid()
+            } else {
+                NonZeroU8::try_from(254).unwrap()
+            });
+            self.screen.buffer_str(str, color, (x_hold, y_hold));
         }
         // Update stored events.
         self.visual_events.extend(

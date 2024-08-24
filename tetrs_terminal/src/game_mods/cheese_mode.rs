@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroU8};
 
 use rand::{self, prelude::SliceRandom};
 
@@ -8,7 +8,7 @@ use tetrs_engine::{
 };
 
 pub fn random_hole_lines() -> impl Iterator<Item = Line> {
-    let grey_tile = Some(NonZeroU32::try_from(254).unwrap());
+    let grey_tile = Some(NonZeroU8::try_from(254).unwrap());
     let mut rng = rand::thread_rng();
     std::iter::from_fn(move || {
         let mut line = [grey_tile; 10];
@@ -20,7 +20,7 @@ pub fn random_hole_lines() -> impl Iterator<Item = Line> {
 
 fn is_cheese_line(line: &Line) -> bool {
     line.iter()
-        .any(|cell| *cell == Some(NonZeroU32::try_from(254).unwrap()))
+        .any(|cell| *cell == Some(NonZeroU8::try_from(254).unwrap()))
 }
 
 // TODO: Why do I have to specify 'static here??

@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, num::NonZeroU32};
+use std::{
+    collections::VecDeque,
+    num::{NonZeroU32, NonZeroU8},
+};
 
 use tetrs_engine::{
     Feedback, FeedbackEvents, FnGameMod, Game, GameConfig, GameMode, GameOver, GameState,
@@ -46,7 +49,7 @@ pub fn new_game() -> Game {
                     if b == b' ' {
                         None
                     } else {
-                        Some(unsafe { NonZeroU32::new_unchecked(254) })
+                        Some(unsafe { NonZeroU8::new_unchecked(254) })
                     }
                 })
             })

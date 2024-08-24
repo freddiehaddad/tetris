@@ -604,7 +604,7 @@ impl<T: Write> TerminalApp<T> {
                     if selected == selected_cnt - 2 {
                         ">>> Puzzle: only spins and perfect clears! <<<"
                     } else {
-                        "Puzzle (!)"
+                        "Puzzle"
                     }
                 )))?;
             // Render custom mode option.
@@ -617,12 +617,12 @@ impl<T: Write> TerminalApp<T> {
                     "{:^w_main$}",
                     if selected == selected_cnt - 1 {
                         if selected_custom == 0 {
-                            "▓▓> Custom mode: (press right repeatedly to change 'limit')"
+                            "▓▓> Custom: (press right repeatedly to change 'limit')"
                         } else {
-                            "  > Custom mode: (press right repeatedly to change 'limit')"
+                            "  > Custom: (press right repeatedly to change 'limit')"
                         }
                     } else {
-                        "Custom mode ..."
+                        "Custom .."
                     }
                 )))?;
             // Render custom mode stuff.
@@ -1023,6 +1023,7 @@ impl<T: Write> TerminalApp<T> {
             buttons_pressed: _,
             board: _,
             active_piece_data: _,
+            holding_piece: _,
             next_pieces: _,
             pieces_played,
             lines_cleared,
@@ -1247,22 +1248,22 @@ impl<T: Write> TerminalApp<T> {
                 .queue(MoveTo(x_main, y_main + y_selection + 2))?
                 .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
             let labels = [
-                "| Change Controls .. |".to_string(),
-                "| Configure Game  .. |".to_string(),
+                "Change Controls ...".to_string(),
+                "Configure Game ...".to_string(),
                 format!("graphics : '{:?}'", self.settings.graphics_style),
                 format!("color : '{:?}'", self.settings.graphics_color),
                 format!("framerate : {}", self.settings.game_fps),
                 format!("show fps : {}", self.settings.show_fps),
                 if self.settings.save_data_on_exit {
-                    "Keep save file for tetrs : On"
+                    "keep save file for tetrs : ON"
                 } else {
-                    "Keep save file for tetrs : Off (!)"
+                    "keep save file for tetrs : OFF*"
                 }
                 .to_string(),
                 if self.settings.save_data_on_exit {
-                    format!("(savefile: {:?})", Self::savefile_path())
+                    format!("(save file: {:?})", Self::savefile_path())
                 } else {
-                    "(WARNING - data will be lost on exit.)".to_string()
+                    "(*WARNING - data will be lost on exit.)".to_string()
                 },
             ];
             for (i, label) in labels.into_iter().enumerate() {
@@ -1412,6 +1413,7 @@ impl<T: Write> TerminalApp<T> {
             Button::DropSoft,
             Button::DropHard,
             Button::DropSonic,
+            Button::Hold,
         ];
         let selection_len = button_selection.len() + 1;
         let mut selected = 0usize;
@@ -1457,9 +1459,9 @@ impl<T: Write> TerminalApp<T> {
                 .queue(Print(format!(
                     "{:^w_main$}",
                     if selected == selection_len - 1 {
-                        ">>> [restore defaults] <<<"
+                        ">>> Restore Defaults <<<"
                     } else {
-                        "[restore defaults]"
+                        "Restore Defaults"
                     }
                 )))?
                 .queue(MoveTo(
@@ -1641,9 +1643,9 @@ impl<T: Write> TerminalApp<T> {
                 .queue(Print(format!(
                     "{:^w_main$}",
                     if selected == selection_len - 1 {
-                        ">>> [restore defaults] <<<"
+                        ">>> Restore Defaults <<<"
                     } else {
-                        "[restore defaults]"
+                        "Restore Defaults"
                     }
                 )))?;
             self.term
@@ -2175,7 +2177,7 @@ impl<T: Write> TerminalApp<T> {
     }
 }
 
-const DAVIS: &'static str = " ▀█▀ \"I am like Solomon because I built God's temple, an operating system. God said 640x480 16 color graphics but the operating system is 64-bit and multi-cored! Go draw a 16 color elephant. Then, draw a 24-bit elephant in MS Paint and be enlightened. Artist stopped photorealism when the camera was invented. A cartoon is actually better than photorealistic. For the next thousand years, first-person shooters are going to get boring. Tetris looks good.\" - In memory of Terry A. Davis";
+const DAVIS: &str = " ▀█▀ \"I am like Solomon because I built God's temple, an operating system. God said 640x480 16 color graphics but the operating system is 64-bit and multi-cored! Go draw a 16 color elephant. Then, draw a 24-bit elephant in MS Paint and be enlightened. Artist stopped photorealism when the camera was invented. A cartoon is actually better than photorealistic. For the next thousand years, first-person shooters are going to get boring. Tetris looks good.\" - In memory of Terry A. Davis";
 
 pub fn format_duration(dur: Duration) -> String {
     format!(
