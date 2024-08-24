@@ -369,6 +369,7 @@ The general rationale behind most kicks is, "these first kicks feel most natural
     - `nOl 0`: Simple sideways O-'roll', providing a second way to move O.
     - `nOl 1`: Allows for O-spins.
     - `nOl 2`: Also allows for O-spins and - more likely - 'rolling' the O out of a shallow well, possibly useful under high gravity.
+    - `nOl 3`: While invisible on the chart, this technically allows the O to *always* successfully change its orientation upon rotation.
 - **I**-piece.
   - As the longest piece, it has the most kicks to accommodate its visual range. What's special is that in its horizontal position it may rotate left or right into *any* reachable space around itself.
     - `nIl 0-7`: Rotating in it from a horizontal to a vertical position will very strongly prefer placing it in the desired direction of rotation first.
