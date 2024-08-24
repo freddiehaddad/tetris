@@ -6,8 +6,8 @@
 </div>
 
 *This repo hosts*
-- `tetrs_terminal`, a simple and polished cross-platform TUI implementation of the typical singleplayer game,
-- and `tetrs_engine`, a tetromino game engine implementing an abstract interface handling modern mechanics.
+- `tetrs_terminal`, a simple, moderately polished cross-platform TUI implementation of the typical game, and
+- `tetrs_engine`, a tetromino game engine implementing an interface capable of handling modern mechanics.
 
 ---
 
@@ -251,6 +251,16 @@ The game provides some useful feedback events upon every `update`, usually used 
 *\*Many small details of the `tetrs_engine` may have been left out of this readme (such as the initial rotation mechanic that immediately rotates a piece if a rotation button is pressed upon spawning). It is intended that this might be elaborated on at a later point in time.*
 
 *\*Another minor defect is current crate documentation (`cargo doc --open`) being unfortunately sparse at this time. Apologies from the author; I hope this can be fixed sometime!*
+
+
+# State of the Code
+
+As much love and care went into building this project, it is of course not without its flaws;
+
+- The engine itself might contain niche bugs as of this time. A personal dream is to sometime go through `Game::update`, establish proper invariants, and prove that it is safe / panic-free!
+- With regards to the terminal game experience, the frontend, I argue is polished enough (much dedication went into making it nice!). Regardless of how it looks, it is very much lacking in aspects of code style. The code for the menus is ad-hoc, with rampant code duplication, no comments, and panic-freedom yet unproven.
+
+A goal would be to amend these problems sometime, step-by-step.
 
 
 # Project Highlights
@@ -626,11 +636,10 @@ Also, I'd like to appreciate how nice the name *tetrs* fits for a Rust game that
   ```
 
 
-<div  align="center">
-
 *„Piecement Places!“* - [CTWC 2016](https://www.youtube.com/watch?v=RlnlDKznIaw&t=121).
 
-Have a nice day /
+
+<div  align="center">
   
 `██ ▄▄▄▄ ▄█▀ ▀█▄ ▄█▄ ▄▄█ █▄▄`
 
