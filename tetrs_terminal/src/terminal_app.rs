@@ -32,6 +32,8 @@ use crate::{
     game_mods,
 };
 
+const TAG: &str = "v0.2.1";
+
 // NOTE: This could be more general and less ad-hoc. Count number of I-Spins, J-Spins, etc..
 pub type RunningGameStats = ([u32; 5], Vec<u32>);
 
@@ -2118,7 +2120,7 @@ impl<T: Write> TerminalApp<T> {
     fn about_menu(&mut self) -> io::Result<MenuUpdate> {
         /* TODO: About menu. */
         self.generic_placeholder_widget(
-            "About tetrs - Visit https://github.com/Strophox/tetrs",
+            &format!("About tetrs {TAG} - Visit https://github.com/Strophox/tetrs"),
             vec![],
         )
     }
