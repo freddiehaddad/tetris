@@ -634,7 +634,7 @@ impl<T: Write> TerminalApp<T> {
                     "{:^w_main$}",
                     if selected == selected_cnt - 2 {
                         format!(
-                            ">>> Combo: How far can you chain? (init={:b}) <<<",
+                            ">>> Combo: How far can you chain? [init={:b}] <<<",
                             self.game_mode_store.initial_combo_layout
                         )
                     } else {
@@ -651,12 +651,12 @@ impl<T: Write> TerminalApp<T> {
                     "{:^w_main$}",
                     if selected == selected_cnt - 1 {
                         if selected_custom == 0 {
-                            "▓▓> Custom: (press right repeatedly to change 'limit')"
+                            "▓▓* Custom: (press right repeatedly to change 'limit')"
                         } else {
-                            "  > Custom: (press right repeatedly to change 'limit')"
+                            "  * Custom: (press right repeatedly to change 'limit')"
                         }
                     } else {
-                        "Custom .."
+                        "* Custom"
                     }
                 )))?;
             // Render custom mode stuff.
@@ -672,7 +672,7 @@ impl<T: Write> TerminalApp<T> {
                 for (j, stat_str) in stats_strs.into_iter().enumerate() {
                     self.term
                         .queue(MoveTo(
-                            x_main + 16 + 4 * u16::try_from(j).unwrap(),
+                            x_main + 18 + 4 * u16::try_from(j).unwrap(),
                             y_main + y_selection + 4 + u16::try_from(2 + j + selected_cnt).unwrap(),
                         ))?
                         .queue(Print(if j + 1 == selected_custom {
@@ -907,7 +907,7 @@ impl<T: Write> TerminalApp<T> {
                                     Some(Stat::Level(NonZeroU32::try_from(25).unwrap()))
                                 }
                                 Some(Stat::Level(_)) => None,
-                                None => Some(Stat::Time(Duration::from_secs(120))),
+                                None => Some(Stat::Time(Duration::from_secs(180))),
                             };
                         } else {
                             selected_custom += 1

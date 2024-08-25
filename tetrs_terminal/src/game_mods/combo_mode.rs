@@ -28,22 +28,19 @@ pub fn four_well_lines() -> impl Iterator<Item = Line> {
         Tetromino::T,
     ]
     .map(|tet| Some(tet.tiletypeid()));
+    let grey_tile = Some(NonZeroU8::try_from(254).unwrap());
     let indices_0 = (0..).map(|i| i % 7);
     let indices_1 = indices_0.clone().skip(1);
-    let indices_2 = indices_0.clone().skip(2);
-    indices_0
-        .zip(indices_1)
-        .zip(indices_2)
-        .map(move |((i_0, i_1), i_2)| {
-            let mut line = [None; 10];
-            line[0] = color_tiles[i_0];
-            line[1] = color_tiles[i_1];
-            line[2] = color_tiles[i_2];
-            line[7] = color_tiles[i_2];
-            line[8] = color_tiles[i_1];
-            line[9] = color_tiles[i_0];
-            line
-        })
+    indices_0.zip(indices_1).map(move |(i_0, i_1)| {
+        let mut line = [None; 10];
+        line[0] = color_tiles[i_0];
+        line[1] = color_tiles[i_1];
+        line[2] = grey_tile;
+        line[7] = grey_tile;
+        line[8] = color_tiles[i_1];
+        line[9] = color_tiles[i_0];
+        line
+    })
 }
 
 pub fn new_game(initial_layout: u16) -> Game {
