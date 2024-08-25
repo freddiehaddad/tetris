@@ -58,8 +58,11 @@ impl CrosstermInputHandler {
             (KeyCode::Right, Button::MoveRight),
             (KeyCode::Char('a'), Button::RotateLeft),
             (KeyCode::Char('d'), Button::RotateRight),
+            //(KeyCode::Char('s'), Button::RotateAround),
             (KeyCode::Down, Button::DropSoft),
             (KeyCode::Up, Button::DropHard),
+            //(KeyCode::Char('w'), Button::DropSonic),
+            (KeyCode::Char(' '), Button::Hold),
         ])
     }
 

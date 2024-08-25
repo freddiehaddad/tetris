@@ -12,13 +12,13 @@ use clap::Parser;
 struct Args {
     /// The framerate at which to run the main game.
     #[arg(short, long)]
-    fps: Option<u32>,
+    combo_layout: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let stdout = io::BufWriter::new(io::stdout());
-    let mut app = terminal_app::TerminalApp::new(stdout, args.fps);
+    let mut app = terminal_app::TerminalApp::new(stdout, args.combo_layout);
     std::panic::set_hook(Box::new(|panic_info| {
         if let Ok(mut file) = std::fs::File::create("tetrs_terminal_error_message.txt") {
             let _ = file.write(panic_info.to_string().as_bytes());

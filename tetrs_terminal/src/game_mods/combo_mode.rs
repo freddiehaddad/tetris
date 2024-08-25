@@ -1,8 +1,8 @@
 use std::num::{NonZeroU32, NonZeroU8};
 
 use tetrs_engine::{
-    FeedbackEvents, FnGameMod, Game, GameConfig, GameMode, GameState, InternalEvent, Limits, Line,
-    ModifierPoint, Tetromino,
+    Board, FeedbackEvents, FnGameMod, Game, GameConfig, GameMode, GameState, InternalEvent, Limits,
+    Line, ModifierPoint, Tetromino,
 };
 
 pub fn four_well_lines() -> impl Iterator<Item = Line> {
@@ -34,9 +34,8 @@ pub fn four_well_lines() -> impl Iterator<Item = Line> {
         })
 }
 
-pub fn new_game() -> Game {
+pub fn new_game(initial_layout: u32) -> Game {
     let mut line_source = four_well_lines();
-    let grey_tile = Some(NonZeroU8::try_from(254).unwrap());
     let mut init = false;
     let combo_mode: FnGameMod = Box::new(
         move |_config: &mut GameConfig,
@@ -53,9 +52,7 @@ pub fn new_game() -> Game {
                 {
                     *line = four_well;
                 }
-                state.board[0][3] = grey_tile;
-                state.board[1][3] = grey_tile;
-                state.board[1][4] = grey_tile;
+                init_board(&mut state.board, initial_layout);
                 init = true;
             } else if matches!(
                 modifier_point,
@@ -79,4 +76,23 @@ pub fn new_game() -> Game {
     });
     unsafe { game.add_modifier(combo_mode) };
     game
+}
+
+fn init_board(board: &mut Board, initial_layout: u32) {
+    #[rustfmt::skip]
+    let coords = match initial_layout {
+        0 => [(0,0),(0,1),(1,1)].iter(), // "r"
+        1 => [(0,0),(1,0),(2,0)].iter(), // "_"
+        2 => [(0,0),(0,1),(1,1), (2,1),(2,0),(3,0)].iter(), // "rl"
+        3 => [(0,0),(0,1),(0,2),  (3,0),(3,1),(3,2)].iter(), // "I I"
+        4 => [(0,0),(1,0),(0, 1),(0,2),(1,2),  (3,0)].iter(), // "k ."
+        5 => [(0,0),(1,0),(0,1),  (3, 1),(3,2),(3,3)].iter(), // "l i"
+        6 => [(0,0),(1,0), (0,1),(1,1), (0,2), (0,3)].iter(), // "b"
+        7 => [(0,0),(0,1),(0,2),(0,3),( 1,0),  (3,0)].iter(), // "L ."
+        _ => [(0,0),(0,1),(1,1)].iter(), // TODO: panic!("unknown initial_layout id {initial_layout} for combo mode"),
+    };
+    let grey_tile = Some(NonZeroU8::try_from(254).unwrap());
+    for (x, y) in coords {
+        board[*y][3 + x] = grey_tile;
+    }
 }

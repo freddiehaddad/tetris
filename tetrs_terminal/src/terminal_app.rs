@@ -146,11 +146,12 @@ pub enum Stat {
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug, serde::Serialize, serde::Deserialize,
 )]
-pub struct CustomModeStore {
+pub struct GameModeStore {
     name: String,
     start_level: NonZeroU32,
     increment_level: bool,
     mode_limit: Option<Stat>,
+    combo_mode_initial_layout: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -158,7 +159,7 @@ pub struct TerminalApp<T: Write> {
     pub term: T,
     kitty_enabled: bool,
     settings: Settings,
-    custom_mode: CustomModeStore,
+    game_mode_store: GameModeStore,
     game_config: GameConfig,
     past_games: Vec<FinishedGameStats>,
 }
@@ -198,7 +199,7 @@ impl<T: Write> TerminalApp<T> {
 
     pub const SAVEFILE_NAME: &'static str = ".tetrs_terminal.json";
 
-    pub fn new(mut terminal: T, fps: Option<u32>) -> Self {
+    pub fn new(mut terminal: T, combo_mode_initial_layout: Option<u32>) -> Self {
         // Console prologue: Initialization.
         // TODO: Handle errors?
         let _ = terminal.execute(terminal::EnterAlternateScreen);
@@ -222,11 +223,12 @@ impl<T: Write> TerminalApp<T> {
                 graphics_color: GraphicsColor::ColorRGB,
                 save_data_on_exit: false,
             },
-            custom_mode: CustomModeStore {
+            game_mode_store: GameModeStore {
                 name: "Custom Mode".to_string(),
                 start_level: NonZeroU32::MIN,
                 increment_level: true,
-                mode_limit: Some(Stat::Time(Duration::from_secs(60))),
+                mode_limit: Some(Stat::Time(Duration::from_secs(180))),
+                combo_mode_initial_layout: 0,
             },
             game_config: GameConfig::default(),
             past_games: vec![],
@@ -237,8 +239,8 @@ impl<T: Write> TerminalApp<T> {
             //eprintln!("Could not loading settings: {e}");
             //std::thread::sleep(Duration::from_secs(5));
         }
-        if let Some(game_fps) = fps {
-            app.settings.game_fps = game_fps.into();
+        if let Some(combo_mode_initial_layout) = combo_mode_initial_layout {
+            app.game_mode_store.combo_mode_initial_layout = combo_mode_initial_layout;
         }
         app.game_config.no_soft_drop_lock = !kitty_enabled;
         app
@@ -292,7 +294,7 @@ impl<T: Write> TerminalApp<T> {
             .collect::<Vec<_>>();
         let save_state = (
             &self.settings,
-            &self.custom_mode,
+            &self.game_mode_store,
             &self.game_config,
             &self.past_games,
         );
@@ -309,7 +311,7 @@ impl<T: Write> TerminalApp<T> {
         file.read_to_string(&mut save_str)?;
         (
             self.settings,
-            self.custom_mode,
+            self.game_mode_store,
             self.game_config,
             self.past_games,
         ) = serde_json::from_str(&save_str)?;
@@ -649,9 +651,12 @@ impl<T: Write> TerminalApp<T> {
             // Render custom mode stuff.
             if selected == selected_cnt - 1 {
                 let stats_strs = [
-                    format!("* level start: {}", self.custom_mode.start_level),
-                    format!("* level increment: {}", self.custom_mode.increment_level),
-                    format!("* limit: {:?}", self.custom_mode.mode_limit),
+                    format!("* level start: {}", self.game_mode_store.start_level),
+                    format!(
+                        "* level increment: {}",
+                        self.game_mode_store.increment_level
+                    ),
+                    format!("* limit: {:?}", self.game_mode_store.mode_limit),
                 ];
                 for (j, stat_str) in stats_strs.into_iter().enumerate() {
                     self.term
@@ -693,12 +698,13 @@ impl<T: Write> TerminalApp<T> {
                     ..
                 }) => {
                     let mut game = if selected == selected_cnt - 1 {
-                        let CustomModeStore {
+                        let GameModeStore {
                             name,
                             start_level,
                             increment_level,
                             mode_limit: custom_mode_limit,
-                        } = self.custom_mode.clone();
+                            combo_mode_initial_layout: _,
+                        } = self.game_mode_store.clone();
                         let limits = match custom_mode_limit {
                             Some(Stat::Time(max_dur)) => Limits {
                                 time: Some((true, max_dur)),
@@ -729,7 +735,9 @@ impl<T: Write> TerminalApp<T> {
                             limits,
                         })
                     } else if selected == selected_cnt - 2 {
-                        game_mods::combo_mode::new_game()
+                        game_mods::combo_mode::new_game(
+                            self.game_mode_store.combo_mode_initial_layout,
+                        )
                     } else if selected == selected_cnt - 3 {
                         game_mods::cheese_mode::new_game(Some(32))
                     } else if selected == selected_cnt - 4 {
@@ -768,15 +776,15 @@ impl<T: Write> TerminalApp<T> {
                     if selected_custom > 0 {
                         match selected_custom {
                             1 => {
-                                self.custom_mode.start_level =
-                                    self.custom_mode.start_level.saturating_add(d_level);
+                                self.game_mode_store.start_level =
+                                    self.game_mode_store.start_level.saturating_add(d_level);
                             }
                             2 => {
-                                self.custom_mode.increment_level =
-                                    !self.custom_mode.increment_level;
+                                self.game_mode_store.increment_level =
+                                    !self.game_mode_store.increment_level;
                             }
                             3 => {
-                                match self.custom_mode.mode_limit {
+                                match self.game_mode_store.mode_limit {
                                     Some(Stat::Time(ref mut dur)) => {
                                         *dur += d_time;
                                     }
@@ -811,17 +819,17 @@ impl<T: Write> TerminalApp<T> {
                     if selected_custom > 0 {
                         match selected_custom {
                             1 => {
-                                self.custom_mode.start_level = NonZeroU32::try_from(
-                                    self.custom_mode.start_level.get() - d_level,
+                                self.game_mode_store.start_level = NonZeroU32::try_from(
+                                    self.game_mode_store.start_level.get() - d_level,
                                 )
                                 .unwrap_or(NonZeroU32::MIN);
                             }
                             2 => {
-                                self.custom_mode.increment_level =
-                                    !self.custom_mode.increment_level;
+                                self.game_mode_store.increment_level =
+                                    !self.game_mode_store.increment_level;
                             }
                             3 => {
-                                match self.custom_mode.mode_limit {
+                                match self.game_mode_store.mode_limit {
                                     Some(Stat::Time(ref mut dur)) => {
                                         *dur = dur.saturating_sub(d_time);
                                     }
@@ -868,7 +876,8 @@ impl<T: Write> TerminalApp<T> {
                     if selected == selected_cnt - 1 {
                         // If reached last stat, cycle through stats for limit.
                         if selected_custom == selected_custom_cnt - 1 {
-                            self.custom_mode.mode_limit = match self.custom_mode.mode_limit {
+                            self.game_mode_store.mode_limit = match self.game_mode_store.mode_limit
+                            {
                                 Some(Stat::Time(_)) => Some(Stat::Score(9000)),
                                 Some(Stat::Score(_)) => Some(Stat::Pieces(100)),
                                 Some(Stat::Pieces(_)) => Some(Stat::Lines(40)),
