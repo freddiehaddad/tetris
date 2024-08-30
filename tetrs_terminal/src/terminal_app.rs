@@ -1993,8 +1993,8 @@ impl<T: Write> TerminalApp<T> {
                             }
                             "Time Trial" => {
                                 format!(
-                                    "{timestamp} ~ Time Trial: {} lns{}",
-                                    last_state.lines_cleared,
+                                    "{timestamp} ~ Time Trial: {} pts{}",
+                                    last_state.score,
                                     if last_state.end.is_some_and(|end| end.is_ok()) {
                                         "".to_string()
                                     } else {
@@ -2223,8 +2223,8 @@ impl<T: Write> TerminalApp<T> {
                             "Time Trial" => {
                                 // Sort asc by time.
                                 stats1.last_state.time.cmp(&stats2.last_state.time).then_with(||
-                                    // Sort by desc lines.
-                                    stats1.last_state.lines_cleared.cmp(&stats2.last_state.lines_cleared).reverse()
+                                    // Sort by desc score.
+                                    stats1.last_state.score.cmp(&stats2.last_state.score).reverse()
                                 )
                             },
                             "Master" => {
