@@ -18,6 +18,6 @@ Cargo.lock
 
 /target
 
-# Custom debug/game file
+# Custom savefile file
 
-tetrs_terminal.json
+tetrs_savefile.json

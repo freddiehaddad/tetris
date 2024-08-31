@@ -197,7 +197,7 @@ impl<T: Write> TerminalApp<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
 
-    pub const SAVEFILE_NAME: &'static str = ".tetrs_terminal.json";
+    pub const SAVEFILE_NAME: &'static str = ".tetrs_savefile.json";
 
     pub fn new(
         mut terminal: T,
@@ -208,7 +208,7 @@ impl<T: Write> TerminalApp<T> {
         // Console prologue: Initialization.
         // TODO: Handle errors?
         let _ = terminal.execute(terminal::EnterAlternateScreen);
-        let _ = terminal.execute(terminal::SetTitle("Tetrs Terminal"));
+        let _ = terminal.execute(terminal::SetTitle("tetrs - Terminal User Interface"));
         let _ = terminal.execute(cursor::Hide);
         let _ = terminal::enable_raw_mode();
         let kitty_enabled = terminal::supports_keyboard_enhancement().unwrap_or(false);

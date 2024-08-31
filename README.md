@@ -6,7 +6,7 @@
 </div>
 
 *This repo hosts*
-- `tetrs_terminal`, a simple, moderately polished cross-platform TUI implementation of the typical game, and
+- `tetrs_tui`, a simple, moderately polished cross-platform TUI implementation of the typical game, and
 - `tetrs_engine`, a tetromino game engine implementing an interface capable of handling modern mechanics.
 
 ---
@@ -23,7 +23,7 @@
 > Or compile it yourself:
 > - Have [Rust](https://www.rust-lang.org/) (1.80.0+) installed.
 > - Download / `git clone` this repository.
-> - Navigate to `tetrs_terminal/` and `cargo run`.
+> - Navigate to `tetrs_tui/` and `cargo run`.
 
 > [!IMPORTANT]
 > Use a terminal like [kitty](<https://sw.kovidgoyal.net/kitty/>) (or any terminal with [support for progressive keyboard enhancement](https://docs.rs/crossterm/latest/crossterm/event/struct.PushKeyboardEnhancementFlags.html)) for smoother gameplay experience.
@@ -110,7 +110,7 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
   - **Puzzle**: Advance through all 24 puzzle stages using perfect clears (and up to 5 attempts), enabled by piece acrobatics of the 'ocular' rotation system.
   - **Cheese**: Eat yourself through 32 lines with random holes, with as few pieces as possible *(\*inspired by Jstris)*.
   - **Combo**: Keep a line clear combo for as long as possible inside an infinite 4-wide well and 3 helper tiles *(\*inspired by Nuketris)*.
-  - (**Descent**: Gather 'gems' as you navigate down (or up) an endless grid using an L or J piece - requires special flag `./tetrs_terminal -d`!)
+  - (**Descent**: Gather 'gems' as you navigate down (or up) an endless grid using an L or J piece - requires special flag `./tetrs_tui -d`!)
 - **Custom**: Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
   
 ### Settings
@@ -147,14 +147,14 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
     - DAS, ARR, hard drop delay, line clear delay, appearance delay,
     - soft drop factor, ground time max,
   - *Advanced*, No soft drop lock (Enables soft drop not instantly locking pieces on ground even if keyboard enhancements are off, for better experience on typical consoles (soft drops for piece spins)).
-- **Keep Savefile**: By default this program won't store anything and just let you play the game. If you **do** want `tetrs_terminal` to restore your settings and past games in the future then make sure this is set to **"On"**!
+- **Keep Savefile**: By default this program won't store anything and just let you play the game. If you **do** want `tetrs_tui` to restore your settings and past games in the future then make sure this is set to **"On"**!
   
 ### Scoreboard
 - History of games played in the current session (or in the past, if "keep save file" is toggled on).
 - *(\*Games where 0 lines have been cleared are auto-deleted on exit.)*
 
 > [!NOTE]
-> If "keep save file for tetrs" is toggled ON then your settings and games will be stored in `.tetrs_terminal.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
+> If "keep save file for tetrs" is toggled ON then your settings and games will be stored in `.tetrs_savefile.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
 > | | Windows | Linux | macOS | other |
 > | -: | - | - | - | - |
 > | location | `%APPDATA%` | `~/.config/` | `~/Library/Application Support/` | (home directory) |

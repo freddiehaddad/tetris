@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "tetrs_terminal",
+    "tetrs_tui",
     "tetrs_engine",
 ]
 resolver = "2"
