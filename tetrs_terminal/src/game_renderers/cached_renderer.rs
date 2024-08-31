@@ -420,8 +420,8 @@ impl Renderer for CachedRenderer {
         let (x_hold, y_hold) = (18, 2);
         let (x_preview, y_preview) = (48, 12);
         let (x_preview_small, y_preview_small) = (48, 14);
-        let (x_preview_minuscule, y_preview_minuscule) = (48, 15);
-        let (x_messages, y_messages) = (47, 17);
+        let (x_preview_minuscule, y_preview_minuscule) = (50, 16);
+        let (x_messages, y_messages) = (47, 18);
         let pos_board = |(x, y)| (x_board + 2 * x, y_board + Game::SKYLINE - y);
         // Board: helpers.
         #[rustfmt::skip]
@@ -558,16 +558,16 @@ impl Renderer for CachedRenderer {
         }
         // Draw minuscule preview pieces 5,6,7,8.
         let preview_minuscule = |t: &Tetromino| match t {
-            Tetromino::O => "⠶",
-            Tetromino::I => "⠤⠤",
-            Tetromino::S => "⠴⠂",
-            Tetromino::Z => "⠲⠄",
-            Tetromino::T => "⠴⠄",
-            Tetromino::L => "⠤⠆",
-            Tetromino::J => "⠦⠄",
+            Tetromino::O => "⠶",//"⠶",
+            Tetromino::I => "⡇",//"⠤⠤",
+            Tetromino::S => "⠳",//"⠴⠂",
+            Tetromino::Z => "⠞",//"⠲⠄",
+            Tetromino::T => "⠗",//"⠴⠄",
+            Tetromino::L => "⠧",//"⠤⠆",
+            Tetromino::J => "⠼",//"⠦⠄",
         };
         let mut x_offset_minuscule = 0;
-        for tet in next_pieces.iter().skip(4).take(5) {
+        for tet in next_pieces.iter().skip(4) {//.take(5) {
             let str = preview_minuscule(tet);
             self.screen.buffer_str(
                 str,

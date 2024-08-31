@@ -250,7 +250,6 @@ impl<T: Write> TerminalApp<T> {
         if let Some(initial_combo_layout) = initial_combo_layout {
             app.game_mode_store.initial_combo_layout = initial_combo_layout;
         }
-        app.game_config.preview_count = 4;
         app.game_config.no_soft_drop_lock = !kitty_enabled;
         app
     }

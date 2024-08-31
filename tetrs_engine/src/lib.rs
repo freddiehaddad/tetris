@@ -1350,7 +1350,7 @@ impl Game {
                         .state
                         .board
                         .iter()
-                        .all(|line| line.iter().all(|tile| tile.is_none()));
+                        .all(|line| line.iter().all(|tile| tile.is_none()) || line.iter().all(|tile| tile.is_some()));
                     self.state.consecutive_line_clears += 1;
                     let special_clear = n_lines_cleared >= 4 || spin || perfect_clear;
                     if special_clear {
