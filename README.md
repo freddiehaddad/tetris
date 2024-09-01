@@ -6,8 +6,8 @@
 </div>
 
 *This repo hosts*
-- `tetrs_tui`, a simple, moderately polished cross-platform TUI implementation of the typical game, and
-- `tetrs_engine`, a tetromino game engine implementing an interface capable of handling modern mechanics.
+- `tetrs_engine`, a tetromino game engine implementing an interface capable of handling modern mechanics, and
+- `tetrs_tui`, a simple, moderately polished Terminal User Interface for a typical cross-platform game experience.
 
 ---
 
