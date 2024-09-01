@@ -198,7 +198,7 @@ impl<T: Write> TerminalApp<T> {
     pub const W_MAIN: u16 = 80;
     pub const H_MAIN: u16 = 24;
 
-    pub const SAVEFILE_NAME: &'static str = ".tetrs_savefile.json";
+    pub const SAVEFILE_NAME: &'static str = ".tetrs_tui_savefile.json";
 
     pub fn new(
         mut terminal: T,
