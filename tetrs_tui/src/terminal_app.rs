@@ -1360,6 +1360,7 @@ impl<T: Write> TerminalApp<T> {
                     "keep save file for tetrs : OFF*"
                 }
                 .to_string(),
+                "".to_string(),
                 if self.settings.save_data_on_exit {
                     format!("(save file: {:?})", Self::savefile_path())
                 } else {
@@ -1384,7 +1385,7 @@ impl<T: Write> TerminalApp<T> {
             self.term
                 .queue(MoveTo(
                     x_main,
-                    y_main + y_selection + 4 + u16::try_from(selection_len + 1).unwrap() + 2,
+                    y_main + y_selection + 4 + u16::try_from(selection_len + 1).unwrap() + 3,
                 ))?
                 .queue(PrintStyledContent(
                     format!("{:^w_main$}", "Use [←] [→] [↑] [↓] [Esc] [Enter].",).italic(),
