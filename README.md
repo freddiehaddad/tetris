@@ -611,13 +611,6 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 
 ## Combo Bot
 
-> [!NOTE]
-> The bot can be enabled to run in Combo Mode with a cmdline flag (`./tetrs_tui -e`).
-> 
-> To make it output the lookahead graphs, a feature is needed at compile time: `cargo run --release --features graphviz`.
-> 
-> To produce statistics, `cargo test <"simple"|"lookaheads"|"randomizers">` was used.
-
 ### Background
 
 The goal of 'Combo Mode' is to keep a combo going for as many pieces/lines as possible, where combo is maintained by clearing lines with consecutive pieces.
@@ -759,6 +752,13 @@ The answer is that the most of the runs die toward the end of a (7-piece) bag, b
 
 Overall this is an interesting topic in the overlap of tetromino randomizers, graph theory and a bit of statistics.
 There's a larger space to be explored here - 4wide 3res is not the only combo setup (and this bot is pretty hardcoded in that respect). An interesting project would be to do something with 4wide 6res, which I heard is more resilient to combo killers, but that might have to wait for some other time :-)
+
+> [!NOTE]
+> The bot can be enabled to run in Combo Mode with a cmdline flag (`./tetrs_tui -e`).
+> 
+> To make it output the lookahead graphs, a feature is needed at compile time: `cargo run --release --features graphviz`.
+> 
+> To produce statistics, `cargo test <"simple"|"lookaheads"|"randomizers">` was used.
 
 
 ## Miscellaneous Author Notes
