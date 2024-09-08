@@ -646,7 +646,21 @@ indeed, it seems as if this distribution, too, is exponential.
 
 Here are some text stats given various randomizers and lookahead values:
 
-<!-- TODO: Table here. -->
+#### Tetrs Combo (4-wide 3-res.) - Bot Statistics Summary
+
+| Samples | Randomizer | Lookahead | Combo Average | Combo Median | Combo Maximum |
+|-|-|-|-|-|-|
+| 1000 | 'bag' | 0 |   11 |    9 |   133 |
+| 1000 | 'bag' | 1 |   24 |   19 |   195 |
+| 1000 | 'bag' | 2 |   40 |   29 |   310 |
+| 1000 | 'bag' | 3 |   78 |   51 |   728 |
+| 1000 | 'bag' | 4 |  132 |   87 |  1123 |
+| 1000 | 'bag' | 5 |  239 |  149 |  2324 |
+| 1000 | 'bag' | 6 |  509 |  314 |  4356 |
+| 1000 | 'bag' | 7 | 1052 |  623 |  8779 |
+| 1000 | 'bag' | 8 | 2201 | 1289 | 15658 |
+| 1000 | 'bag' | 9 | 4211 | 2349 | 32391 |
+
 
 
 ## Miscellaneous Author Notes
