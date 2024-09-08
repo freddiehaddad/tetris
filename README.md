@@ -611,6 +611,8 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 
 ## Combo Bot
 
+[Screencast from 2024-09-08 22-21-45 combot-demo.webm](https://github.com/user-attachments/assets/a3d96655-7d96-4f87-80ff-b1c86840ced3)
+
 ### Background
 
 The goal of 'Combo Mode' is to keep a combo going for as many pieces/lines as possible, where combo is maintained by clearing lines with consecutive pieces.
@@ -664,8 +666,6 @@ The bot currently only supports lookahead up to 42 (number of bit triplets that 
 As we'll see, it still does pretty okay for reasonable preview sizes.
 
 ### Results and Evaluation
-
-[Screencast from 2024-09-08 22-21-45 combot-demo.webm](https://github.com/user-attachments/assets/a3d96655-7d96-4f87-80ff-b1c86840ced3)
 
 <details>
 
