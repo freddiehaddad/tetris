@@ -109,8 +109,8 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
 - Special modes:
   - **Puzzle**: Advance through all 24 puzzle stages using perfect clears (and up to 5 attempts), enabled by piece acrobatics of the 'ocular' rotation system.
   - **Cheese**: Eat yourself through 32 lines with random holes, with as few pieces as possible *(\*inspired by Jstris)*.
-  - **Combo**: Keep a line clear combo for as long as possible inside an infinite 4-wide well and 3 helper tiles *(\*inspired by Nuketris)*.
-  - (**Descent**: Gather 'gems' as you navigate down (or up) an endless grid using an L or J piece - requires special flag `./tetrs_tui -d`!)
+  - **Combo**: Keep a line clear combo for as long as possible inside an infinite 4-wide well *(\*inspired by Nuketris)*.
+  - (**Descent**: Gather 'gems' as you navigate down (or up) an endless grid using an L or J piece - unlocked by completing Puzzle Mode)
 - **Custom**: Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
   
 ### Settings
