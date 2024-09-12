@@ -77,7 +77,7 @@
 </details>
 
 > [!TIP]
-> Play **Puzzle Mode** with its 24 stages to try the special ['ocular' rotation system](#ocular-rotation-system) *(feat. T-spin Triple)*!
+> Play **Puzzle Mode** with its 24 stages to experience the custom [Ocular Rotation System](#ocular-rotation-system) *(with T-spin Triple cameo)*.
 > 
 > <details>
 > 
@@ -91,7 +91,7 @@
 # Features of the Application
 
 ### Gameplay
-- Familiar stacker experience of moving, rotating, soft-/hard-dropping and holding *tetrominos* and clearing completed rows.
+- Familiar stacker experience of moving, rotating, soft-/hard-dropping and holding Tetrominos and clearing completed rows.
 - Colorful pieces.
 - Next piece preview.
 - Ghost piece.
@@ -101,28 +101,28 @@
 For more technical details see [Features of the Tetrs Engine](#features-of-the-tetrs-engine).
 
 ### Gamemodes
-- Normal modes:
+- Standard modes:
   - **40-Lines**: Clear 40-Lines as quickly as possible.
   - **Marathon**: Reach speed level 15 with the highest score possible.
   - **Time Trial**: Get the highest score possible within three minutes.
-  - **Master**: Clear 100 lines starting at the highest speed level *(\*inspired by TE:C)*.
+  - **Master**: Clear 100 lines starting at the highest speed level.
 - Special modes:
   - **Puzzle**: Advance through all 24 puzzle stages using perfect clears (and up to 5 attempts), enabled by piece acrobatics of the 'ocular' rotation system.
-  - **Cheese**: Eat yourself through 32 lines with random holes, with as few pieces as possible *(\*inspired by Jstris)*.
-  - **Combo**: Keep a line clear combo for as long as possible inside an infinite 4-wide well *(\*inspired by Nuketris)*.
+  - **Cheese**: Eat yourself through lines with random holes, with as few pieces as possible (default: 20).
+  - **Combo**: Keep a line clear combo for as long as possible inside an infinite 4-wide well.
   - (**Descent**: Gather 'gems' as you navigate down (or up) an endless grid using an L or J piece - unlocked by completing Puzzle Mode)
-- **Custom**: Change start level, toggle level increment, set game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
+- Custom mode: Change start level, toggle level increment, set a game limit *(Time, Score, Pieces, Lines, Level, or No limit)*.
   
 ### Settings
 - Look of the game:
   - Graphics (Unicode, ASCII, 'Electronika 60').
-  - Coloring (RGB Colors; 16 Colors (should work on all consoles), Monochrome).
+  - Colors (RGB Colors; 16 Colors (should work on all consoles), Monochrome).
   - Adjustable render rate and toggleable FPS counter.
 - Play of the game:
   - Change controls.
   <details>
   
-  <summary> Default Game Controls </summary>
+  <summary> Default In-Game Controls </summary>
   
   | Key | Action |
   | -: | :-: |
@@ -141,20 +141,20 @@ For more technical details see [Features of the Tetrs Engine](#features-of-the-t
   </details>
   
   - Configure game.
-    - Rotation system  (Ocular, Classic, Super),
-    - Piece generator (History, Uniform, Bag, Total-Relative),
-    - Preview count (0 - 8),
+    - Rotation system (Ocular, Classic, Super),
+    - Piece generator (History, Uniform, Bag, Balance-Relative),
+    - Preview count (0 - \<terminal width limit>),
     - DAS, ARR, hard drop delay, line clear delay, appearance delay,
     - soft drop factor, ground time max,
   - *Advanced*, No soft drop lock (Enables soft drop not instantly locking pieces on ground even if keyboard enhancements are off, for better experience on typical consoles (soft drops for piece spins)).
-- **Keep Savefile**: By default this program won't store anything and just let you play the game. If you **do** want `tetrs_tui` to restore your settings and past games in the future then make sure this is set to **"On"**!
+- **Keep Save File**: By default this program __won't store anything__ but just let you play the game. If you do want `tetrs_tui` to restore your settings and take record of past games upon startup then make sure this is set to **ON**!
   
 ### Scoreboard
 - History of games played in the current session (or in the past, if "keep save file" is toggled on).
 - *(\*Games where 0 lines have been cleared are auto-deleted on exit.)*
 
 > [!NOTE]
-> If "keep save file for tetrs" is toggled ON then your settings and games will be stored in `.tetrs_tui_savefile.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
+> If "keep save file for tetrs" is toggled **ON** then your settings and games will be stored in `.tetrs_tui_savefile.json` under a directory that tries to follow OS conventions [[1](https://softwareengineering.stackexchange.com/questions/3956/best-way-to-save-application-settings), [2](https://softwareengineering.stackexchange.com/questions/299869/where-is-the-appropriate-place-to-put-application-configuration-files-for-each-p)]:
 > | | Windows | Linux | macOS | other |
 > | -: | - | - | - | - |
 > | location | `%APPDATA%` | `~/.config/` | `~/Library/Application Support/` | (home directory) |
@@ -203,7 +203,7 @@ tetrs_engine = { git = "https://github.com/Strophox/tetrs.git" }
 
 <summary> Game Configuration Aspects </summary>
 
-- Gamemodes: Are encoded as a combination of *starting level* and *whether to increment level* and (one/several positive/negative) *limits*.
+- 'Standard' Gamemodes: Are encoded as a combination of *starting level* and *whether to increment level* and (one/several positive/negative) *limits*.
 - Rotation Systems: *Ocular Rotation System*, *Classic Rotation System*, *Super Rotation System*. See [Ocular Rotation System](#ocular-rotation-system).
 - Tetromino Generators: *Recency-based*, *Bag*, *Uniformly random*. Default is recency. See [Tetromino Generation](#tetromino-generation).
 - Piece Preview (default 1)
@@ -218,7 +218,7 @@ Currently, drop delay and lock delay\* *(\*But not total ground time)* are a fun
 - Drop delay (1000ms at lvl 1 to 0.833ms ("20G") at lvl 19, as per guideline)
 - 'Timer' variant of Extended Placement Lockdown (step reset); The piece tries to lock every 500ms at lvl 19 to every 150ms at lvl 30, and any given piece may only touch ground for 3000ms in total. See [Piece Locking](#piece-locking).
 
-All default values loosely based on the [Guideline](https://tetris.wiki/Tetris_Guideline).
+Most default values inspired by [Guideline](https://tetris.wiki/Tetris_Guideline).
 
 </details>
 
@@ -272,7 +272,7 @@ As much love and care went into building this project, it is of course not witho
   - no (or even worse, *wrong*) comments, and
   - possible panics may still be hiding around the corner.
 
-A goal of mine would be to (at least partially) amend these problems, step-by-step.
+A personal goal would be to (at least partially) amend these problems, step-by-step.
 
 
 # Project Highlights
