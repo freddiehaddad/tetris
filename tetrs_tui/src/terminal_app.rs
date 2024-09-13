@@ -153,6 +153,7 @@ pub struct GameModeStore {
     increment_level: bool,
     custom_mode_limit: Option<Stat>,
     cheese_mode_limit: Option<NonZeroUsize>,
+    cheese_mode_gap_size: usize,
     combo_starting_layout: u16,
     descent_mode: bool,
 }
@@ -242,6 +243,7 @@ impl<T: Write> TerminalApp<T> {
                 increment_level: false,
                 custom_mode_limit: None,
                 cheese_mode_limit: Some(NonZeroUsize::try_from(20).unwrap()),
+                cheese_mode_gap_size: 1,
                 combo_starting_layout: game_mods::combo_mode::LAYOUTS[0],
                 descent_mode: false,
             },
@@ -581,6 +583,7 @@ impl<T: Write> TerminalApp<T> {
             let (x_main, y_main) = Self::fetch_main_xy();
             let y_selection = Self::H_MAIN / 5;
             let cheese_mode_limit = self.game_mode_store.cheese_mode_limit;
+            let cheese_mode_gap_size = self.game_mode_store.cheese_mode_gap_size;
             let combo_starting_layout = self.game_mode_store.combo_starting_layout;
             let mut special_gamemodes: Vec<(_, _, Box<dyn Fn() -> Game>)> = vec![
                 (
@@ -594,7 +597,9 @@ impl<T: Write> TerminalApp<T> {
                         "eat your way through! (limit: {:?})",
                         self.game_mode_store.cheese_mode_limit
                     ),
-                    Box::new(|| game_mods::cheese_mode::new_game(cheese_mode_limit)),
+                    Box::new(|| {
+                        game_mods::cheese_mode::new_game(cheese_mode_limit, cheese_mode_gap_size)
+                    }),
                 ),
                 (
                     "Combo",
@@ -747,6 +752,7 @@ impl<T: Write> TerminalApp<T> {
                             increment_level,
                             custom_mode_limit,
                             cheese_mode_limit: _,
+                            cheese_mode_gap_size: _,
                             combo_starting_layout: _,
                             descent_mode: _,
                         } = self.game_mode_store.clone();
@@ -1369,7 +1375,7 @@ impl<T: Write> TerminalApp<T> {
                 "Change Controls ...".to_string(),
                 "Configure Game ...".to_string(),
                 format!("graphics : '{:?}'", self.settings.graphics_style),
-                format!("color : '{:?}'", self.settings.graphics_color),
+                format!("colors : '{:?}'", self.settings.graphics_color),
                 format!("framerate : {}", self.settings.game_fps),
                 format!("show fps : {}", self.settings.show_fps),
                 if self.settings.save_data_on_exit {

@@ -378,7 +378,7 @@ The general rationale behind most kicks is, "these first kicks feel most natural
 
 *\*Notation*: `nTlr 0-3` describes kick positions `0` to `3` when rotating a `n`orth-facing `T`-piece to the `l`eft _or_ `r`ight.
 
-![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system_16px.png)
+![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system+_16px.png)
 
 - **O**-piece.
   - As the most symmetrical piece, having no kicks would be most natural, but also make it the only piece where rotation is 'useless'. Adding limited kicks however already turns out to be very useful to the player:
@@ -492,7 +492,7 @@ It's pretty flexible (2.) yet forces a decision (1.), but the 'count to 15 moves
 
 <details>
 
-<summary> 'Timer' Extended Placement Lock Down </summary>
+<summary> 'Timer' Placement Lock Down </summary>
 
 *Let 'ground time' denote the amount of time a piece touches a surface*
 

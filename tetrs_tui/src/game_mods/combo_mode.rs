@@ -5,19 +5,19 @@ use tetrs_engine::{
     Line, ModifierPoint, Tetromino,
 };
 
-pub const LAYOUTS: [u16; 4] = [
+pub const LAYOUTS: [u16; 5] = [
     0b0000_0000_1100_1000, // "r"
-    //0b0000_0000_0000_1110, // "_"
+    0b0000_0000_0000_1110, // "_"
     0b0000_1100_1000_1011, // "f _"
     0b0000_1100_1000_1101, // "k ."
     0b1000_1000_1000_1101, // "L ."
-                           //0b0000_1001_1001_1001, // "I I"
-                           //0b0001_0001_1001_1100, // "l i"
-                           //0b1000_1000_1100_1100, // "b"
-                           //0b0000_0000_1110_1011, // "rl"
+                           /*0b0000_1001_1001_1001, // "I I"
+                           0b0001_0001_1001_1100, // "l i"
+                           0b1000_1000_1100_1100, // "b"
+                           0b0000_0000_1110_1011, // "rl"*/
 ];
 
-pub fn four_wide_lines() -> impl Iterator<Item = Line> {
+fn four_wide_lines() -> impl Iterator<Item = Line> {
     let color_tiles = [
         Tetromino::Z,
         Tetromino::L,

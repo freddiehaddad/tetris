@@ -1,19 +1,22 @@
 use std::num::{NonZeroU32, NonZeroU8, NonZeroUsize};
 
-use rand::{self, prelude::SliceRandom};
+use rand::Rng;
 
 use tetrs_engine::{
     FeedbackEvents, FnGameMod, Game, GameConfig, GameMode, GameState, InternalEvent, Limits, Line,
     ModifierPoint,
 };
 
-pub fn random_hole_lines() -> impl Iterator<Item = Line> {
+fn random_gap_lines(gap_size: usize) -> impl Iterator<Item = Line> {
+    let gap_size = gap_size.min(10);
     let grey_tile = Some(NonZeroU8::try_from(254).unwrap());
     let mut rng = rand::thread_rng();
     std::iter::from_fn(move || {
         let mut line = [grey_tile; 10];
-        line[4] = None;
-        line.shuffle(&mut rng);
+        let gap_idx = rng.gen_range(0..=line.len() - gap_size);
+        for i in 0..gap_size {
+            line[gap_idx + i] = None;
+        }
         Some(line)
     })
 }
@@ -23,8 +26,9 @@ fn is_cheese_line(line: &Line) -> bool {
         .any(|cell| *cell == Some(NonZeroU8::try_from(254).unwrap()))
 }
 
-pub fn new_game(cheese_limit: Option<NonZeroUsize>) -> Game {
-    let mut line_source = random_hole_lines().take(cheese_limit.unwrap_or(NonZeroUsize::MAX).get());
+pub fn new_game(cheese_limit: Option<NonZeroUsize>, gap_size: usize) -> Game {
+    let mut line_source =
+        random_gap_lines(gap_size).take(cheese_limit.unwrap_or(NonZeroUsize::MAX).get());
     let mut temp_cheese_tally = 0;
     let mut temp_normal_tally = 0;
     let mut init = false;
