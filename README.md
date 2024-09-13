@@ -43,49 +43,40 @@
 
 ## Gallery
 
-*Classic game experience with different gamemodes:*
+**Classic game experience:**
 
-![Tetrs demo screenshot](Gallery/Screenshots/tetrs_screenshot-game.png)
-
-
-*Smooth rendering on all platforms, configurable controls and more:*
-
-![Tetrs demo GIF](Gallery/Gifs/tetrs_rec-main.gif)
+![Tetrs demo screenshot](Gallery/sample-unicode.png)
 
 
-**ASCII graphics available:**
+**Efficient rendering in console, configurable controls, etc.:**
+
+![Tetrs demo GIF](Gallery/sample-unicode.gif)
+
+
+> [!TIP]
+> Play **Puzzle Mode** with its 24 stages to test the custom [Ocular Rotation System](#ocular-rotation-system) (+ unlock the experimental **Descent Mode**).
+
+
+**Various tileset + coloring combinations possible:**
 
 <details>
 
 <summary>ASCII demo GIF</summary>
 
-![Tetrs ASCII demo GIF](Gallery/Gifs/tetrs_rec-ascii.gif)
+![Tetrs ASCII demo GIF](Gallery/sample-ascii.gif)
 
 </details>
 
-
-**Retro 'Electronika 60' graphics available:**
 
 <details>
 
 <summary>Electronika 60 demo PNG</summary>
 
-![Electronika 60 demo PNG](Gallery/Screenshots/tetrs_screenshot-electronika-60.png)
+![Electronika 60 demo PNG](Gallery/sample-electronika60.png)
 
-*\*For display like in the screenshot set your terminal text color to green and font to a Unicode-compatible one (e.g. `DejaVu Sans Mono` works)*
+*\*For display just like in the screenshot set your terminal text color to green and font to a Unicode-compatible one (e.g. `DejaVu Sans Mono` works)*
 
 </details>
-
-> [!TIP]
-> Play **Puzzle Mode** with its 24 stages to experience the custom [Ocular Rotation System](#ocular-rotation-system) *(with T-spin Triple cameo)*.
-> 
-> <details>
-> 
-> <summary> Puzzle Mode demo GIF </summary>
-> 
-> ![Tetrs Puzzle Mode demo GIF](Gallery/Gifs/tetrs_rec-puzzle.gif)
-> 
-> </details>
 
 
 # Features of the Application
@@ -348,7 +339,7 @@ The result of this was the *'Ocular' Rotation System*, which was made by... *loo
 
 I present to you - the Ocular Rotation System Heatmap:
 
-![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system_16px.png)
+![Ocular Rotation System Heatmap](Gallery/rotation/ocular-rotation-system_16px.png)
 
 *How to read it*:
 This heatmap is created by considering each combination of (piece, orientation, rotate left or right).
@@ -356,7 +347,7 @@ By overlapping all the _new_ possible positions for a piece after rotation, one 
 
 Here's a comparison with SRS - the Super Rotation System Heatmap:
 
-![Super Rotation System Heatmap](Gallery/super-rotation-system_16px.png)
+![Super Rotation System Heatmap](Gallery/rotation/super-rotation-system_16px.png)
 
 With SRS one starts to spot some rotational symmetries (you can always rotate back-and-forth between two positions), but I think it's overshadowed by all the asymmetrical kicks and very lenient (downwards *and upwards*) vertical kicks that contribute to SRS' unintuitiveness.
 
@@ -378,7 +369,7 @@ The general rationale behind most kicks is, "these first kicks feel most natural
 
 *\*Notation*: `nTlr 0-3` describes kick positions `0` to `3` when rotating a `n`orth-facing `T`-piece to the `l`eft _or_ `r`ight.
 
-![Ocular Rotation System Heatmap](Gallery/ocular-rotation-system+_16px.png)
+![Ocular Rotation System Heatmap](Gallery/rotation/ocular-rotation-system+_16px.png)
 
 - **O**-piece.
   - As the most symmetrical piece, having no kicks would be most natural, but also make it the only piece where rotation is 'useless'. Adding limited kicks however already turns out to be very useful to the player:
@@ -602,9 +593,9 @@ The menus form a graph (with menus as nodes and valid transitions as directed ed
 
 <details>
 
-<summary>Tetrs Terminal Menu Graph (via Graphviz)</summary>
+<summary>Tetrs Terminal Menu Graph</summary>
 
-![tetrs menu graph](Gallery/tetrs_menu-graph.svg)
+![tetrs menu graph](Gallery/tui-menu-graph.svg)
 
 </details>
 
@@ -632,7 +623,7 @@ It turns out there are only a finite number of these configurations inside a 4-w
 
 *Notice how due to the fact that a tetromino consists of 4 cells, clearing a line like this will always leave another 3 cells in the otherwise perfectly vertical 4-wide tunnel.*
 
-![harddrop.com 4wide 3res combo continuations](/Gallery/harddrop.com_4-Wide-Combo-Setups.png)
+![harddrop.com 4wide 3res combo continuations](/Gallery/combo/harddrop.com_4-Wide-Combo-Setups.png)
 
 Graphic with modifications courtesy of [harddrop](https://harddrop.com/wiki/Combo_Setups#4-Wide_with_3_Residuals).
 
@@ -652,7 +643,7 @@ It turns out we can model this as a [graph](https://en.wikipedia.org/wiki/Graph_
 
 </summary>
 
-![4-lookahead state graph](/Gallery/combo_4-lookahead-graph.svg)
+![4-lookahead state graph](/Gallery/combo/combo_4-lookahead-graph.svg)
 
 </details>
 
@@ -660,7 +651,7 @@ Different decisions can be made depending on whether we hold the current piece a
 
 What the bot does with this is to look at the farthest states it finds, and chooses the branch that maximizes depth and possibilities to make different decisions later on (states with many continuations).
 
-While humans can vaguely do this for certain previews and also get a feeling for it, one can program a computer to do this automatically even for larger preview sizes (see a [12-lookahead state graph here](/Gallery/combo_12-lookahead-graph.svg)).
+While humans can vaguely do this for certain previews and also get a feeling for it, one can program a computer to do this automatically even for larger preview sizes (see a [12-lookahead state graph here](/Gallery/combo/combo_12-lookahead-graph.svg)).
 
 The bot currently only supports lookahead up to 42 (number of bit triplets that fit into `u128`), although it already tends to get quite slow for values half of that.
 As we'll see, it still does pretty okay for reasonable preview sizes.
@@ -724,7 +715,7 @@ Another table.
 
 Additionally, these benchmarks also produce visualization of the actual distribution of combos:
 
-![combo distribution, recency, 0-lookahead, 1'000 samples](/Gallery/combot-2024-09-08_19-01-11_L0_recency.svg)
+![combo distribution, recency, 0-lookahead, 1'000 samples](/Gallery/combo/combot-2024-09-08_19-01-11_L0_recency.svg)
 
 <details>
 
@@ -732,13 +723,13 @@ Additionally, these benchmarks also produce visualization of the actual distribu
 It is interesting to note how these distributions can spread out quickly for higher lookaheads.
 </summary>
 
-![combo distribution, recency, 4-lookahead, 2'500 samples](/Gallery/combot-2024-09-08_19-02-47_L4_recency.svg)
+![combo distribution, recency, 4-lookahead, 2'500 samples](/Gallery/combo/combot-2024-09-08_19-02-47_L4_recency.svg)
 
 </details>
 
 Running the bot on a uniform randomizer for 1'000'000 samples yields a much nicer, smooth curve:
 
-![combo distribution, uniform, 1-lookahead, 1'000'000 samples](/Gallery/combot-2024-09-07_18-09-31_L1_uniform.png)
+![combo distribution, uniform, 1-lookahead, 1'000'000 samples](/Gallery/combo/combot-2024-09-07_18-09-31_L1_uniform.png)
 
 Basically all common randomizers I implemented will have a curves smoothing out like this.
 
@@ -753,7 +744,7 @@ One more thing - I lied about all distributions looking the same.
 
 Look at this curious chart for the bag randomizer, which despite a million samples *does not* seem to smooth out:
 
-![combo distribution, bag, 1-lookahead, 1'000'000 samples](/Gallery/combot-2024-09-07_18-09-31_L1_bag.png)
+![combo distribution, bag, 1-lookahead, 1'000'000 samples](/Gallery/combo/combot-2024-09-07_18-09-31_L1_bag.png)
 
 What's happening with these obvious valleys and peaks?
 Upon further inspection, the peaks are at: 6, 13, 20, 27, 34, 41, ... can you spot the pattern?
